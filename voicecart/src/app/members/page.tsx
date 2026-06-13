@@ -8,10 +8,21 @@ import { Allergen, DietType } from '@/types';
 
 export default function MembersPage() {
   const { members, currentUserId, updateMember } = useMembers();
-  const { getItemsByMember } = useCart();
+  const { getItemsByMember, commonCarts } = useCart();
   const router = useRouter();
   const [editingMember, setEditingMember] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ diet: '' as string, allergies: [] as string[], favoriteBrands: '', dislikes: '' });
+
+  const visibleMemberIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    ids.add(currentUserId);
+    commonCarts.forEach(cart => {
+      cart.memberIds.forEach(id => ids.add(id));
+    });
+    return ids;
+  }, [currentUserId, commonCarts]);
+
+  const visibleMembers = members.filter(m => visibleMemberIds.has(m.id));
 
   const startEdit = (memberId: string) => {
     const m = members.find(x => x.id === memberId);
@@ -49,7 +60,7 @@ export default function MembersPage() {
         <h1>Members</h1>
       </div>
 
-      {members.map(m => {
+      {visibleMembers.map(m => {
         const memberItems = getItemsByMember(m.id);
         const subtotal = memberItems.reduce((s, i) => s + i.product.price * i.quantity, 0);
         const isEditing = editingMember === m.id;
