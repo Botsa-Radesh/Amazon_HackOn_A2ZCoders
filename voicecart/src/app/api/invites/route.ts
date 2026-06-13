@@ -10,11 +10,11 @@ export async function GET(req: NextRequest) {
     if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
 
     const client = getDynamoClient();
-    const result = await client.send(new QueryCommand({
+    const { ScanCommand } = await import('@aws-sdk/lib-dynamodb');
+    const result = await client.send(new ScanCommand({
       TableName: TABLE_NAME,
-      KeyConditionExpression: 'begins_with(pk, :pk) AND sk = :sk',
+      FilterExpression: 'begins_with(pk, :pk) AND sk = :sk AND (createdBy = :uid OR contains(pendingFor, :uid))',
       ExpressionAttributeValues: { ':pk': 'INVITE#', ':sk': 'META', ':uid': userId },
-      FilterExpression: 'createdBy = :uid OR contains( pendingFor, :uid )',
     }));
 
     return NextResponse.json({ invites: result.Items || [] });

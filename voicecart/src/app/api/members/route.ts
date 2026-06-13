@@ -6,9 +6,10 @@ import { PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 export async function GET() {
   try {
     const client = getDynamoClient();
-    const result = await client.send(new QueryCommand({
+    const { ScanCommand } = await import('@aws-sdk/lib-dynamodb');
+    const result = await client.send(new ScanCommand({
       TableName: TABLE_NAME,
-      KeyConditionExpression: 'begins_with(pk, :pk) AND sk = :sk',
+      FilterExpression: 'begins_with(pk, :pk) AND sk = :sk',
       ExpressionAttributeValues: { ':pk': 'MEMBER#', ':sk': 'PROFILE' },
     }));
 

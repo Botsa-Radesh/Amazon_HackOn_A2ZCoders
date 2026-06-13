@@ -10,14 +10,17 @@ export async function GET(req: NextRequest) {
     if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
 
     const client = getDynamoClient();
-    const result = await client.send(new QueryCommand({
+
+    // DynamoDB doesn't support begins_with on partition keys in Query.
+    // Use Scan with filter to find all carts where this user is a member.
+    const { ScanCommand } = await import('@aws-sdk/lib-dynamodb');
+    const result = await client.send(new ScanCommand({
       TableName: TABLE_NAME,
-      KeyConditionExpression: 'begins_with(pk, :pk) AND sk = :sk',
-      ExpressionAttributeValues: { ':pk': 'CART#', ':sk': 'META', ':uid': userId },
-      FilterExpression: 'contains( memberIds, :uid )',
+      FilterExpression: 'sk = :sk AND contains(memberIds, :uid)',
+      ExpressionAttributeValues: { ':sk': 'META', ':uid': userId },
     }));
 
-    const carts = result.Items || [];
+    const carts = (result.Items || []).filter((item: any) => item.pk?.startsWith('CART#'));
 
     for (const cart of carts) {
       const itemsResult = await client.send(new QueryCommand({

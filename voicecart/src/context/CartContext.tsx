@@ -76,12 +76,50 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [savedTemplates, setSavedTemplates] = useState<Template[]>(defaultTemplates);
   const { userId } = useAuth();
 
-  // Synchronous init: create personal cart on first render if needed
+  // Fetch carts from API first, then create personal cart only if none exists in DB
   const initRan = useRef(false);
-  if (!initRan.current) {
+
+  useEffect(() => {
+    if (initRan.current) return;
     initRan.current = true;
-    const uid = getCurrentUserId();
-    if (!personalCartId || !carts[personalCartId]) {
+
+    const uid = userId || getCurrentUserId();
+    
+    fetchCartsFromAPI(uid).then(fetchedCarts => {
+      if (fetchedCarts && fetchedCarts.length > 0) {
+        const cartMap: Record<string, Cart> = {};
+        fetchedCarts.forEach((c: any) => {
+          cartMap[c.id] = { ...c, items: c.items || [], isActive: true };
+        });
+        setCarts(prev => ({ ...prev, ...cartMap }));
+
+        // Find existing personal cart from DB
+        const personal = fetchedCarts.find((c: any) => c.type === 'personal' && c.memberIds?.includes(uid));
+        if (personal) {
+          setPersonalCartId(personal.id);
+          setActiveCartId(prev => prev || personal.id);
+        } else {
+          // No personal cart in DB, create one
+          createLocalPersonalCart(uid);
+        }
+      } else {
+        // No carts in DB at all, create a personal cart
+        createLocalPersonalCart(uid);
+      }
+    }).catch(() => {
+      // API failed, create local cart as fallback
+      createLocalPersonalCart(uid);
+    });
+
+    userPrefsApi.get(uid).then(res => {
+      if (res.prefs) {
+        if (res.prefs.activeCartId) setActiveCartId(res.prefs.activeCartId);
+        if (res.prefs.personalCartId) setPersonalCartId(res.prefs.personalCartId);
+        if (res.prefs.savedTemplates) setSavedTemplates(res.prefs.savedTemplates);
+      }
+    }).catch(() => {});
+
+    function createLocalPersonalCart(uid: string) {
       const cart: Cart = {
         id: generateCartId(),
         code: '',
@@ -98,44 +136,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setPersonalCartId(cart.id);
       setActiveCartId(prev => prev || cart.id);
       syncCartToAPI(cart).catch(() => {});
-    } else if (!activeCartId) {
-      setActiveCartId(personalCartId);
     }
-  }
-
-  useEffect(() => {
-    const uid = userId || getCurrentUserId();
-    let mounted = true;
-    
-    fetchCartsFromAPI(uid).then(fetchedCarts => {
-      if (!mounted) return;
-      if (fetchedCarts && fetchedCarts.length > 0) {
-        setCarts(prev => {
-          const next = { ...prev };
-          fetchedCarts.forEach((c: any) => {
-            next[c.id] = { ...c, items: c.items || [] };
-          });
-          return next;
-        });
-
-        const personal = fetchedCarts.find((c: any) => c.type === 'personal' && c.createdBy === uid);
-        if (personal && !personalCartId) {
-          setPersonalCartId(personal.id);
-          userPrefsApi.update(uid, { personalCartId: personal.id }).catch(() => {});
-        }
-      }
-    }).catch(() => {});
-
-    userPrefsApi.get(uid).then(res => {
-      if (!mounted) return;
-      if (res.prefs) {
-        if (res.prefs.activeCartId) setActiveCartId(res.prefs.activeCartId);
-        if (res.prefs.personalCartId) setPersonalCartId(res.prefs.personalCartId);
-        if (res.prefs.savedTemplates) setSavedTemplates(res.prefs.savedTemplates);
-      }
-    }).catch(() => {});
-    
-    return () => { mounted = false; };
   }, [userId]);
 
   const activeCart = useMemo(() => {
