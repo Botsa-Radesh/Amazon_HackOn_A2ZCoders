@@ -80,7 +80,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const lastFetchedUid = useRef<string | null>(null);
 
   useEffect(() => {
-    const uid = userId || getCurrentUserId();
+    // Wait for auth to hydrate — don't run with guest IDs
+    if (!userId) return;
+    const uid = userId;
     
     // Skip if we already fetched for this exact userId
     if (lastFetchedUid.current === uid) return;
@@ -102,6 +104,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         } else {
           // No personal cart in DB, create one
           createLocalPersonalCart(uid);
+        }
+
+        // Also set active to common cart if one exists
+        const common = fetchedCarts.find((c: any) => c.type === 'common');
+        if (common && !personal) {
+          setActiveCartId(common.id);
         }
       } else {
         // No carts in DB at all, create a personal cart

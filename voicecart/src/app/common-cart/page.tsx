@@ -19,7 +19,7 @@ export default function CommonCartPage() {
 
   const { personalCartId, carts, commonCarts, activeCartId, setActiveCart, leaveCommonCart } = useCart();
   const { createCommonCart, joinCommonCartByCode, pendingInvites, addInvite } = useCommonCart();
-  const { members, addMember, currentUserId } = useMembers();
+  const { members, addMember, currentUserId, getMemberById } = useMembers();
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -34,11 +34,10 @@ export default function CommonCartPage() {
 
   const handleJoin = async () => {
     if (!inviteCodeInput.trim()) return;
-    const personName = joinName.trim() || `Member ${members.length}`;
-    const exists = members.some(m => m.name.toLowerCase() === personName.toLowerCase());
-    const newMember = exists ? members.find(m => m.name.toLowerCase() === personName.toLowerCase())! : addMember(personName);
-    const joined = await joinCommonCartByCode(inviteCodeInput.trim(), newMember.id);
+    // Always join with the auth user ID so the cart is findable after refresh
+    const joined = await joinCommonCartByCode(inviteCodeInput.trim(), currentUserId);
     if (joined) {
+      const personName = joinName.trim() || getMemberById(currentUserId)?.name || 'You';
       setJoinResult(`Joined as ${personName}!`);
       showToast(`Joined as ${personName}!`, 'success');
       setTimeout(() => router.push('/voice-cart'), 1000);
