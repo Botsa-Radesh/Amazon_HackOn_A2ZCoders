@@ -159,8 +159,7 @@ export async function generateDashboardInsights(
   orders: { date: string; totalAmount: number; items: { name: string; quantity: number; price: number; category: string }[]; memberPayments: { memberId: string; amount: number }[] }[],
   members: { id: string; name: string }[]
 ): Promise<DashboardInsight[]> {
-  const key = getApiKey();
-  if (!key || orders.length === 0) {
+  if (orders.length === 0) {
     return [
       { emoji: '🛒', title: 'Start ordering to see insights', detail: 'Your personalized analytics will appear here after your first order.' },
       { emoji: '📊', title: 'Track your spending', detail: 'Order history will power AI-driven spending insights.' },
@@ -168,47 +167,11 @@ export async function generateDashboardInsights(
     ];
   }
 
-  const memberMap = Object.fromEntries(members.map(m => [m.id, m.name]));
-  const summary = orders.slice(-10).map(o => {
-    const date = new Date(o.date).toLocaleDateString();
-    const items = o.items.map(i => `${i.quantity}x ${i.name}`).join(', ');
-    const members_paid = o.memberPayments.map(p => `${memberMap[p.memberId] || p.memberId}:₹${p.amount}`).join(', ');
-    return `[${date}] ₹${o.totalAmount} — ${items} | Paid: ${members_paid}`;
-  }).join('\n');
-
-  const memberNames = members.map(m => m.name).join(', ');
-
-  const prompt = `${insightsPrompt}\n\nMembers: ${memberNames}\n\nRecent orders:\n${summary}\n\nInsights:`;
-
-  try {
-    const res = await fetch(`${GEMINI_API}?key=${key}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 400 },
-      }),
-    });
-
-    if (!res.ok) return getFallbackInsights(orders, members);
-
-    const data = await res.json();
-    const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!content) return getFallbackInsights(orders, members);
-
-    const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-    const parsed = JSON.parse(cleaned);
-    if (Array.isArray(parsed) && parsed.length >= 3) {
-      return parsed.slice(0, 3).map((i: any) => ({
-        emoji: String(i.emoji || '💡'),
-        title: String(i.title || 'Insight'),
-        detail: String(i.detail || ''),
-      }));
-    }
-    return getFallbackInsights(orders, members);
-  } catch {
-    return getFallbackInsights(orders, members);
+  const { data } = await callServerAI('dashboard_insights', { orders, members });
+  if (data && Array.isArray(data.insights)) {
+    return (data.insights as DashboardInsight[]).slice(0, 3);
   }
+  return getFallbackInsights(orders, members);
 }
 
 function getFallbackInsights(

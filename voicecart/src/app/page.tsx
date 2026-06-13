@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCoins } from '@/context/CoinsContext';
@@ -20,15 +20,42 @@ const categories = [
   { id: 'Household', label: 'Household', emoji: '🧹' },
 ];
 
-function StarRating({ rating }: { rating: number }) {
-  const stars = '⭐'.repeat(Math.floor(rating)) + (rating % 1 >= 0.5 ? '⭐' : '');
-  return <span className="stars">{stars}</span>;
+function ProductImage({ src, alt, emoji }: { src: string; alt: string; emoji: string }) {
+  const imgRef = useRef<HTMLImageElement>(null);
+  const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+    setLoaded(false);
+  }, [src]);
+
+  return (
+    <div className="product-image-wrapper">
+      {!failed ? (
+        <img
+          ref={imgRef}
+          src={src}
+          alt={alt}
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
+          style={{ opacity: loaded ? 1 : 0 }}
+        />
+      ) : null}
+      {(!loaded || failed) && (
+        <span className="product-emoji-fallback" style={{ position: failed ? 'absolute' : 'relative' }}>
+          {emoji}
+        </span>
+      )}
+    </div>
+  );
 }
 
 export default function HomePage() {
   const router = useRouter();
   const { balance, nextMilestone } = useCoins();
-  const { addItem, activeCart, activeCartId, createPersonalCart, setActiveCart, personalCartId } = useCart();
+  const { addItem, activeCartId, createPersonalCart, setActiveCart, personalCartId } = useCart();
   const { currentUserId, getMemberById } = useMembers();
   const { showToast } = useToast();
   const [activeCategory, setActiveCategory] = useState('all');
@@ -45,8 +72,8 @@ export default function HomePage() {
   }, []);
 
   const filteredProducts = activeCategory === 'all'
-    ? products.filter(p => p.trending)
-    : products.filter(p => p.category === activeCategory && p.trending);
+    ? products
+    : products.filter(p => p.category === activeCategory);
 
   const handleAddToCart = (product: Product) => {
     if (!activeCartId) {
@@ -103,40 +130,24 @@ export default function HomePage() {
           ))}
         </div>
 
-        {/* Deals Banner */}
-        <div className="deals-banner animate-fadeIn">
-          <div>
-            <h2>🔥 Today&apos;s Deals</h2>
-            <p>Limited time offers on your favorite products</p>
-          </div>
-          <div className="deals-timer">
-            <span>⏱️</span>
-            <span>Ends in: <strong>12h 35m</strong></span>
-          </div>
-        </div>
-
         {/* Product Grid */}
-        <div className="content-section">
+        <div className="content-section" style={{ marginTop: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h2 className="section-title" style={{ margin: 0 }}>
-              {activeCategory === 'all' ? '🔥 Trending Products' : `📦 ${activeCategory}`}
+              {activeCategory === 'all' ? '🛍️ All Products' : `📦 ${activeCategory}`}
             </h2>
-            <button className="btn btn-link" onClick={() => setActiveCategory('all')}>
-              {activeCategory !== 'all' ? 'View All' : ''}
-            </button>
+            <span style={{ fontSize: 13, color: 'var(--amazon-text-muted)' }}>
+              {filteredProducts.length} items
+            </span>
           </div>
 
           <div className="product-grid">
-            {filteredProducts.slice(0, 24).map(product => {
+            {filteredProducts.map(product => {
               const rating = productRatings[product.id];
               return (
                 <div key={product.id} className="product-card animate-fadeIn">
-                  <div
-                    className="product-image"
-                    onClick={() => router.push(`/voice-cart?add=${product.id}`)}
-                    style={{ overflow: 'hidden' }}
-                  >
-                    <span style={{ fontSize: 56 }}>{product.emoji}</span>
+                  <div onClick={() => router.push(`/voice-cart?add=${product.id}`)}>
+                    <ProductImage src={product.imageUrl} alt={product.name} emoji={product.emoji} />
                   </div>
                   <div
                     className="product-title"
@@ -145,7 +156,7 @@ export default function HomePage() {
                     {product.name}
                   </div>
                   <div className="product-rating">
-                    <StarRating rating={rating.rating} />
+                    <span className="stars">{'⭐'.repeat(Math.floor(rating.rating))}</span>
                     <span className="count">({rating.count.toLocaleString()})</span>
                   </div>
                   <div className="product-price">
@@ -153,6 +164,9 @@ export default function HomePage() {
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--amazon-text-muted)', marginBottom: 8 }}>
                     {product.brand} · {product.unit}
+                    {product.stockStatus === 'low_stock' && (
+                      <span style={{ color: '#d97706', marginLeft: 6 }}>⚠️ Low stock</span>
+                    )}
                   </div>
                   <button
                     className="add-to-cart-btn"
