@@ -29,18 +29,26 @@ export async function POST(req: NextRequest) {
 
     const orderId = `ord-${Date.now()}`;
 
-    const orderItem = {
+    // Get all member IDs involved in the order. Fallback to a single user if memberPayments is empty.
+    const memberIds = order.memberPayments && order.memberPayments.length > 0 
+      ? order.memberPayments.map((p: any) => p.memberId) 
+      : [order.userId || 'unknown'];
+
+    const itemsToPut = memberIds.map((uid: string) => ({
       ...Keys.order(orderId),
-      ...Keys.userOrders(order.userId || 'unknown'),
+      ...Keys.userOrders(uid),
       id: orderId,
       ...order,
       status: 'confirmed',
       createdAt: new Date().toISOString(),
-    };
+    }));
 
-    await client.send(new PutCommand({ TableName: TABLE_NAME, Item: orderItem }));
+    // Save the order to DynamoDB for each member individually
+    for (const item of itemsToPut) {
+      await client.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
+    }
 
-    return NextResponse.json({ order: orderItem });
+    return NextResponse.json({ order: itemsToPut[0] });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
