@@ -77,13 +77,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const { userId } = useAuth();
 
   // Fetch carts from API first, then create personal cart only if none exists in DB
-  const initRan = useRef(false);
+  const lastFetchedUid = useRef<string | null>(null);
 
   useEffect(() => {
-    if (initRan.current) return;
-    initRan.current = true;
-
     const uid = userId || getCurrentUserId();
+    
+    // Skip if we already fetched for this exact userId
+    if (lastFetchedUid.current === uid) return;
+    lastFetchedUid.current = uid;
     
     fetchCartsFromAPI(uid).then(fetchedCarts => {
       if (fetchedCarts && fetchedCarts.length > 0) {
@@ -91,13 +92,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         fetchedCarts.forEach((c: any) => {
           cartMap[c.id] = { ...c, items: c.items || [], isActive: true };
         });
-        setCarts(prev => ({ ...prev, ...cartMap }));
+        setCarts(cartMap);
 
         // Find existing personal cart from DB
         const personal = fetchedCarts.find((c: any) => c.type === 'personal' && c.memberIds?.includes(uid));
         if (personal) {
           setPersonalCartId(personal.id);
-          setActiveCartId(prev => prev || personal.id);
+          setActiveCartId(personal.id);
         } else {
           // No personal cart in DB, create one
           createLocalPersonalCart(uid);
@@ -108,13 +109,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
     }).catch(() => {
       // API failed, create local cart as fallback
-      createLocalPersonalCart(uid);
+      if (!personalCartId) createLocalPersonalCart(uid);
     });
 
     userPrefsApi.get(uid).then(res => {
       if (res.prefs) {
-        if (res.prefs.activeCartId) setActiveCartId(res.prefs.activeCartId);
-        if (res.prefs.personalCartId) setPersonalCartId(res.prefs.personalCartId);
         if (res.prefs.savedTemplates) setSavedTemplates(res.prefs.savedTemplates);
       }
     }).catch(() => {});
@@ -134,7 +133,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       };
       setCarts(prev => ({ ...prev, [cart.id]: cart }));
       setPersonalCartId(cart.id);
-      setActiveCartId(prev => prev || cart.id);
+      setActiveCartId(cart.id);
       syncCartToAPI(cart).catch(() => {});
     }
   }, [userId]);

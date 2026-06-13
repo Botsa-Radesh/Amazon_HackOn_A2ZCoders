@@ -22,7 +22,14 @@ export async function GET(req: NextRequest) {
 
     const carts = (result.Items || []).filter((item: any) => item.pk?.startsWith('CART#'));
 
+    // Derive id from pk if not stored explicitly
     for (const cart of carts) {
+      if (!cart.id && cart.pk) {
+        cart.id = cart.pk.replace('CART#', '');
+      }
+      if (!cart.type) cart.type = 'personal';
+      if (!cart.createdBy && cart.memberIds?.[0]) cart.createdBy = cart.memberIds[0];
+
       const itemsResult = await client.send(new QueryCommand({
         TableName: TABLE_NAME,
         KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
@@ -31,7 +38,23 @@ export async function GET(req: NextRequest) {
       cart.items = itemsResult.Items || [];
     }
 
-    return NextResponse.json({ carts });
+    // Deduplicate: for personal carts, keep only the one with most items (or most recent if tied)
+    const personalCarts = carts.filter((c: any) => c.type === 'personal');
+    const commonCarts = carts.filter((c: any) => c.type === 'common');
+    
+    let bestPersonal: any = null;
+    if (personalCarts.length > 0) {
+      bestPersonal = personalCarts.reduce((best: any, c: any) => {
+        if (!best) return c;
+        if ((c.items?.length || 0) > (best.items?.length || 0)) return c;
+        if ((c.items?.length || 0) === (best.items?.length || 0) && (c.createdAt || '') > (best.createdAt || '')) return c;
+        return best;
+      }, null);
+    }
+
+    const dedupedCarts = bestPersonal ? [bestPersonal, ...commonCarts] : commonCarts;
+
+    return NextResponse.json({ carts: dedupedCarts });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -42,8 +65,9 @@ export async function POST(req: NextRequest) {
     const cart = await req.json();
     const client = getDynamoClient();
 
-    const cartId = `cart-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const code = generateCode();
+    // Use client-provided id if available, otherwise generate one
+    const cartId = cart.id || `cart-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const code = cart.code || generateCode();
 
     const item = {
       ...Keys.cart(cartId),
