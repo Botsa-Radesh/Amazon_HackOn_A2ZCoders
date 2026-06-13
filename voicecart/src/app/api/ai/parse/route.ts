@@ -6,13 +6,15 @@ function getApiKey(): string | null {
   return process.env.GEMINI_KEY || process.env.NEXT_PUBLIC_GEMINI_KEY || null;
 }
 
-const systemPrompt = `You extract grocery items from natural language. Return ONLY a JSON array of objects with keys "name" and "quantity" (number). Quantity defaults to 1 if not specified. Examples:
+const systemPrompt = `You are a smart grocery shopping assistant. The user will give you a natural language request. It might be a direct list of items, or it might be a scenario/recipe (e.g., "I want to bake a chocolate cake" or "I am throwing a pizza party").
+If it is a list of items, extract them. If it is a scenario, deduce the raw grocery ingredients needed for that scenario and return them.
+Return ONLY a JSON array of objects with keys "name" and "quantity" (number). Quantity defaults to 1 if not specified. Examples:
 
-Input: "add 2kg rice, 1 packet of pasta, 3 apples and a bottle of oil"
-Output: [{"name":"rice","quantity":2},{"name":"pasta","quantity":1},{"name":"apples","quantity":3},{"name":"oil","quantity":1}]
+Input: "add 2kg rice, 1 packet of pasta, and 3 apples"
+Output: [{"name":"rice","quantity":2},{"name":"pasta","quantity":1},{"name":"apples","quantity":3}]
 
-Input: "i need milk bread and eggs"
-Output: [{"name":"milk","quantity":1},{"name":"bread","quantity":1},{"name":"eggs","quantity":1}]`;
+Input: "I want to bake a chocolate cake"
+Output: [{"name":"wheat flour","quantity":1},{"name":"sugar","quantity":1},{"name":"eggs","quantity":6},{"name":"cocoa powder","quantity":1},{"name":"milk","quantity":1},{"name":"butter","quantity":1}]`;
 
 const recipeSystemPrompt = `You are a recipe matcher. Given a user's request, return the EXACT name of the closest matching recipe from this list. Return ONLY the recipe name, nothing else. If no recipe matches, return "UNKNOWN".
 
