@@ -113,47 +113,34 @@ export function Header() {
         <div className="header-links desktop-only">
           {isAuthenticated ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Link href="/members" className="header-link" style={{ color: '#fff', textDecoration: 'none' }}>
+              <Link href="/members" className="header-link" style={{ textDecoration: 'none' }}>
                 <span className="top-label">Hello, {user?.name?.split(' ')[0]}</span>
                 <span className="main-label">Account & Lists</span>
               </Link>
-              <button className="header-link" onClick={handleLogout} style={{ color: '#fff', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 2 }}>
+              <button className="header-link" onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 2 }}>
                 <span className="top-label">&nbsp;</span>
                 <span className="main-label" style={{ fontSize: 12 }}>Sign Out</span>
               </button>
             </div>
           ) : (
-            <Link href="/auth/login" className="header-link" style={{ color: '#fff', textDecoration: 'none' }}>
+            <Link href="/auth/login" className="header-link" style={{ textDecoration: 'none' }}>
               <span className="top-label">Hello, Sign in</span>
               <span className="main-label">Account & Lists</span>
             </Link>
           )}
-          <Link href="/dashboard" className="header-link" style={{ color: '#fff', textDecoration: 'none' }}>
+          <Link href="/dashboard" className="header-link" style={{ textDecoration: 'none' }}>
             <span className="top-label">Returns</span>
             <span className="main-label">& Orders</span>
           </Link>
         </div>
 
-        <Link href="/voice-cart" className="header-cart" style={{ color: '#fff', textDecoration: 'none' }}>
+        <Link href="/voice-cart" className="header-cart" style={{ textDecoration: 'none' }}>
           <span className="header-cart-icon">🛒</span>
           <span className="header-cart-text desktop-only">Cart</span>
           {totalItems > 0 && <span className="header-cart-badge">{totalItems}</span>}
         </Link>
 
-        {/* Dark Mode Toggle */}
-        <button
-          className="header-link"
-          onClick={() => {
-            const html = document.documentElement;
-            const current = html.getAttribute('data-theme');
-            html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
-            localStorage.setItem('voicecart-theme', current === 'dark' ? 'light' : 'dark');
-          }}
-          aria-label="Toggle dark mode"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: '4px 8px' }}
-        >
-          <span style={{ fontSize: 18 }}>🌙</span>
-        </button>
+        {/* Dark Mode Toggle - removed since we're forcing white theme */}
       </div>
     </header>
   );

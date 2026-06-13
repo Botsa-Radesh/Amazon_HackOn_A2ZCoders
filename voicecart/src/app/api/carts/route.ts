@@ -17,7 +17,18 @@ export async function GET(req: NextRequest) {
       FilterExpression: 'contains( memberIds, :uid )',
     }));
 
-    return NextResponse.json({ carts: result.Items || [] });
+    const carts = result.Items || [];
+
+    for (const cart of carts) {
+      const itemsResult = await client.send(new QueryCommand({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+        ExpressionAttributeValues: { ':pk': `CART#${cart.id}`, ':sk': 'ITEM#' },
+      }));
+      cart.items = itemsResult.Items || [];
+    }
+
+    return NextResponse.json({ carts });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

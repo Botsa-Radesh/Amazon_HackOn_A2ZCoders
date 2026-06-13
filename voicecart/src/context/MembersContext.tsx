@@ -1,10 +1,10 @@
 'use client';
-import React, { createContext, useContext, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react';
 import { Member, Allergen, DietType } from '@/types';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useAuth } from './AuthContext';
 import { defaultMembers } from '@/data/members';
-import { syncMemberToAPI } from '@/lib/sync';
+import { syncMemberToAPI, fetchMembersFromAPI } from '@/lib/sync';
+import { memberApi } from '@/lib/api';
 
 const avatars = ['👨‍💻', '👩‍🍳', '👨‍🎓', '👩‍💼', '👨‍🏫', '👩‍🔧', '👨‍🎨', '👩‍🚀', '👨‍⚕️', '👩‍🌾'];
 let avatarIndex = 0;
@@ -27,13 +27,25 @@ interface MembersContextType {
 const MembersContext = createContext<MembersContextType | null>(null);
 
 export function MembersProvider({ children }: { children: React.ReactNode }) {
-  const [members, setMembers] = useLocalStorage<Member[]>('voicecart-members', defaultMembers);
+  const [members, setMembers] = useState<Member[]>(defaultMembers);
   const { userId } = useAuth();
   const currentUserId = useMemo(() => userId || 'guest', [userId]);
 
+  useEffect(() => {
+    let mounted = true;
+    fetchMembersFromAPI().then(dbMembers => {
+      if (!mounted) return;
+      if (dbMembers && dbMembers.length > 0) {
+        setMembers(dbMembers);
+      }
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+
   const updateMember = useCallback((memberId: string, updates: Partial<Member>) => {
     setMembers(prev => prev.map(m => m.id === memberId ? { ...m, ...updates } : m));
-  }, [setMembers]);
+    memberApi.update(memberId, updates).catch(() => {});
+  }, []);
 
   const getMemberById = useCallback((memberId: string) => members.find(m => m.id === memberId), [members]);
 
@@ -59,11 +71,15 @@ export function MembersProvider({ children }: { children: React.ReactNode }) {
 
   const toggleMemberOnline = useCallback((memberId: string) => {
     setMembers(prev => prev.map(m => m.id === memberId ? { ...m, isOnline: !m.isOnline } : m));
-  }, [setMembers]);
+    const m = getMemberById(memberId);
+    if (m) memberApi.update(memberId, { isOnline: !m.isOnline }).catch(() => {});
+  }, [getMemberById]);
 
   const toggleMemberTyping = useCallback((memberId: string) => {
     setMembers(prev => prev.map(m => m.id === memberId ? { ...m, isTyping: !m.isTyping } : m));
-  }, [setMembers]);
+    const m = getMemberById(memberId);
+    if (m) memberApi.update(memberId, { isTyping: !m.isTyping }).catch(() => {});
+  }, [getMemberById]);
 
   return (
     <MembersContext.Provider value={{ members, currentUserId, updateMember, getMemberById, addMember, toggleMemberOnline, toggleMemberTyping }}>

@@ -1,10 +1,10 @@
 'use client';
-import React, { createContext, useContext, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react';
 import { CoinTransaction } from '@/types';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useAuth } from './AuthContext';
 import { getNextMilestone, getRedeemOptions } from '@/utils/coinsCalculator';
 import { syncCoinsToAPI } from '@/lib/sync';
+import { coinApi, userPrefsApi } from '@/lib/api';
 
 interface CoinsContextType {
   balance: number;
@@ -20,10 +20,27 @@ interface CoinsContextType {
 const CoinsContext = createContext<CoinsContextType | null>(null);
 
 export function CoinsProvider({ children }: { children: React.ReactNode }) {
-  const [balance, setBalance] = useLocalStorage<number>('voicecart-coins', 1247);
-  const [transactions, setTransactions] = useLocalStorage<CoinTransaction[]>('voicecart-transactions', []);
-  const [streak, setStreak] = useLocalStorage<number>('voicecart-streak', 3);
+  const [balance, setBalance] = useState<number>(1247);
+  const [transactions, setTransactions] = useState<CoinTransaction[]>([]);
+  const [streak, setStreak] = useState<number>(3);
   const { userId } = useAuth();
+
+  useEffect(() => {
+    let mounted = true;
+    if (userId) {
+      coinApi.get(userId).then(res => {
+        if (!mounted) return;
+        if (res.balance !== undefined) setBalance(res.balance);
+        if (res.transactions && res.transactions.length > 0) setTransactions(res.transactions);
+      }).catch(() => {});
+
+      userPrefsApi.get(userId).then(res => {
+        if (!mounted) return;
+        if (res.prefs?.streak !== undefined) setStreak(res.prefs.streak);
+      }).catch(() => {});
+    }
+    return () => { mounted = false; };
+  }, [userId]);
 
   const addCoins = useCallback((amount: number, reason: string) => {
     setBalance(prev => prev + amount);
@@ -52,8 +69,12 @@ export function CoinsProvider({ children }: { children: React.ReactNode }) {
   }, [balance, setBalance, setTransactions, userId]);
 
   const incrementStreak = useCallback(() => {
-    setStreak(prev => prev + 1);
-  }, [setStreak]);
+    setStreak(prev => {
+      const next = prev + 1;
+      if (userId) userPrefsApi.update(userId, { streak: next }).catch(() => {});
+      return next;
+    });
+  }, [userId]);
 
   const nextMilestone = useMemo(() => getNextMilestone(balance), [balance]);
   const redeemOptions = useMemo(() => getRedeemOptions(), []);

@@ -94,3 +94,12 @@ export async function syncInviteToAPI(invite: any) {
     await inviteApi.create(invite);
   } catch {}
 }
+
+export async function fetchOrdersFromAPI(userId: string): Promise<any[]> {
+  try {
+    const result = await orderApi.list(userId);
+    return result.orders || [];
+  } catch {
+    return [];
+  }
+}

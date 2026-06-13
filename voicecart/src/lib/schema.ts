@@ -69,6 +69,10 @@ export const Keys = {
   coins(userId: string) { return { pk: `COINS#${userId}`, sk: 'BALANCE' }; },
   coinTransaction(userId: string, txId: string) { return { pk: `COINS#${userId}`, sk: `TX#${txId}` }; },
   invite(code: string) { return { pk: `INVITE#${code.toUpperCase()}`, sk: 'META' }; },
+  userPref(userId: string) { return { pk: `USERPREF#${userId}`, sk: 'META' }; },
+  appConfig(key: string) { return { pk: 'CONFIG#', sk: `CONFIG#${key}` }; },
+  splitRequest(splitId: string) { return { pk: `SPLIT#${splitId}`, sk: 'META' }; },
+  userSplits(userId: string) { return { pk: `USERSPLITS#${userId}`, sk: 'SPLIT#' }; },
 };
 
 export const GSI1 = 'GSI1';

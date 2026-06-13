@@ -63,3 +63,25 @@ export const inviteApi = {
   accept: (code: string, userId: string, memberId: string) =>
     request<{ cart: any }>('/invites', { method: 'PATCH', body: JSON.stringify({ action: 'accept', code, userId, memberId }) }),
 };
+
+// User Prefs
+export const userPrefsApi = {
+  get: (userId: string) => request<{ prefs: any }>(`/user-prefs?userId=${userId}`),
+  update: (userId: string, updates: any) =>
+    request<{ success: boolean }>('/user-prefs', { method: 'PATCH', body: JSON.stringify({ userId, updates }) }),
+};
+
+// App Config
+export const appConfigApi = {
+  get: (key: string) => request<{ config: any }>(`/app-config?key=${key}`),
+  update: (key: string, updates: any) =>
+    request<{ success: boolean }>('/app-config', { method: 'PATCH', body: JSON.stringify({ key, updates }) }),
+};
+
+// Splits
+export const splitApi = {
+  list: (userId: string) => request<{ splits: any[] }>(`/splits?userId=${userId}`),
+  create: (split: any) => request<{ split: any }>('/splits', { method: 'POST', body: JSON.stringify(split) }),
+  update: (splitId: string, updates: any) =>
+    request<{ success: boolean }>(`/splits/${splitId}`, { method: 'PATCH', body: JSON.stringify(updates) }),
+};

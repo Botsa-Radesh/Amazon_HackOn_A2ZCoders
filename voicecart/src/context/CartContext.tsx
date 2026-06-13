@@ -1,12 +1,12 @@
 'use client';
-import React, { createContext, useContext, useCallback, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import { CartItem, Product, Template, Cart, SplitMode } from '@/types';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { products, getProductById } from '@/data/products';
 import { defaultTemplates } from '@/data/templates';
 import { useAuth } from './AuthContext';
-import { syncCartToAPI, syncCartItemToAPI, syncRemoveCartItemToAPI } from '@/lib/sync';
-import { cartApi } from '@/lib/api';
+import { syncCartToAPI, syncCartItemToAPI, syncRemoveCartItemToAPI, fetchCartsFromAPI } from '@/lib/sync';
+import { cartApi, userPrefsApi } from '@/lib/api';
 
 function generateCartCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -70,10 +70,10 @@ function getCurrentUserId(): string {
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [carts, setCarts] = useLocalStorage<Record<string, Cart>>('voicecart-all-carts', {});
-  const [activeCartId, setActiveCartId] = useLocalStorage<string | null>('voicecart-active-cart', null);
-  const [personalCartId, setPersonalCartId] = useLocalStorage<string | null>('voicecart-personal-cart', null);
-  const [savedTemplates, setSavedTemplates] = useLocalStorage<Template[]>('voicecart-templates', defaultTemplates);
+  const [carts, setCarts] = useState<Record<string, Cart>>({});
+  const [activeCartId, setActiveCartId] = useState<string | null>(null);
+  const [personalCartId, setPersonalCartId] = useState<string | null>(null);
+  const [savedTemplates, setSavedTemplates] = useState<Template[]>(defaultTemplates);
   const { userId } = useAuth();
 
   // Synchronous init: create personal cart on first render if needed
@@ -97,10 +97,46 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setCarts(prev => ({ ...prev, [cart.id]: cart }));
       setPersonalCartId(cart.id);
       setActiveCartId(prev => prev || cart.id);
+      syncCartToAPI(cart).catch(() => {});
     } else if (!activeCartId) {
       setActiveCartId(personalCartId);
     }
   }
+
+  useEffect(() => {
+    const uid = userId || getCurrentUserId();
+    let mounted = true;
+    
+    fetchCartsFromAPI(uid).then(fetchedCarts => {
+      if (!mounted) return;
+      if (fetchedCarts && fetchedCarts.length > 0) {
+        setCarts(prev => {
+          const next = { ...prev };
+          fetchedCarts.forEach((c: any) => {
+            next[c.id] = { ...c, items: c.items || [] };
+          });
+          return next;
+        });
+
+        const personal = fetchedCarts.find((c: any) => c.type === 'personal' && c.createdBy === uid);
+        if (personal && !personalCartId) {
+          setPersonalCartId(personal.id);
+          userPrefsApi.update(uid, { personalCartId: personal.id }).catch(() => {});
+        }
+      }
+    }).catch(() => {});
+
+    userPrefsApi.get(uid).then(res => {
+      if (!mounted) return;
+      if (res.prefs) {
+        if (res.prefs.activeCartId) setActiveCartId(res.prefs.activeCartId);
+        if (res.prefs.personalCartId) setPersonalCartId(res.prefs.personalCartId);
+        if (res.prefs.savedTemplates) setSavedTemplates(res.prefs.savedTemplates);
+      }
+    }).catch(() => {});
+    
+    return () => { mounted = false; };
+  }, [userId]);
 
   const activeCart = useMemo(() => {
     if (!activeCartId || !carts[activeCartId]) return null;
@@ -114,7 +150,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const setActiveCart = useCallback((cartId: string) => {
     setActiveCartId(cartId);
-  }, [setActiveCartId]);
+    const uid = userId || getCurrentUserId();
+    userPrefsApi.update(uid, { activeCartId: cartId }).catch(() => {});
+  }, [userId]);
 
   const createPersonalCart = useCallback((userId: string, userName: string): Cart => {
     const existing = personalCartId && carts[personalCartId];
@@ -135,9 +173,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setCarts(prev => ({ ...prev, [cart.id]: cart }));
     setPersonalCartId(cart.id);
     setActiveCartId(cart.id);
+    const uid = userId || getCurrentUserId();
+    userPrefsApi.update(uid, { personalCartId: cart.id, activeCartId: cart.id }).catch(() => {});
     syncCartToAPI(cart).catch(() => {});
     return cart;
-  }, [carts, personalCartId, setCarts, setPersonalCartId, setActiveCartId]);
+  }, [carts, personalCartId, userId]);
 
   const createCommonCart = useCallback((
     name: string,
@@ -220,11 +260,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       };
       return { ...prev, [cartId]: updatedCart! };
     });
-    if (activeCartId === cartId) {
+    if (activeCartId === cartId && personalCartId) {
       setActiveCartId(personalCartId);
+      const uid = userId || getCurrentUserId();
+      userPrefsApi.update(uid, { activeCartId: personalCartId }).catch(() => {});
     }
     if (updatedCart) syncCartToAPI(updatedCart).catch(() => {});
-  }, [activeCartId, personalCartId, setCarts, setActiveCartId]);
+  }, [activeCartId, personalCartId, userId]);
 
   const updateCartSplitMode = useCallback((cartId: string, mode: SplitMode) => {
     setCarts(prev => {
@@ -347,12 +389,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       totalItems: templateItems.length,
       totalPrice: total,
     };
-    setSavedTemplates(prev => [...prev, template]);
-  }, [activeCart, totalPrice, setSavedTemplates]);
+    setSavedTemplates(prev => {
+      const next = [...prev, template];
+      const uid = userId || getCurrentUserId();
+      userPrefsApi.update(uid, { savedTemplates: next }).catch(() => {});
+      return next;
+    });
+  }, [activeCart, userId]);
 
   const deleteTemplate = useCallback((templateId: string) => {
-    setSavedTemplates(prev => prev.filter(t => t.id !== templateId));
-  }, [setSavedTemplates]);
+    setSavedTemplates(prev => {
+      const next = prev.filter(t => t.id !== templateId);
+      const uid = userId || getCurrentUserId();
+      userPrefsApi.update(uid, { savedTemplates: next }).catch(() => {});
+      return next;
+    });
+  }, [userId]);
 
   return (
     <CartContext.Provider value={{

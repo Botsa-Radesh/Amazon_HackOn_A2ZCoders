@@ -37,7 +37,7 @@ function VoiceCartPageInner() {
     carts, activeCartId, personalCartId, activeCart, commonCarts,
     setActiveCart, createPersonalCart, joinCommonCart,
     updateCartSplitMode, updateCartName,
-    addItem, removeItem, updateQuantity, toggleShared, clearCart,
+    addItem, removeItem, updateQuantity, toggleShared, clearCart, leaveCommonCart,
     totalItems, totalPrice, getItemsByMember, getSharedItems,
   } = useCart();
   const { members, currentUserId, getMemberById } = useMembers();
@@ -788,6 +788,12 @@ function VoiceCartPageInner() {
               onClick={() => { clearCart(); showToast('Cart cleared', 'info'); }}>
               Clear Cart
             </button>
+            {activeCart?.type === 'common' && (
+              <button className="btn btn-ghost btn-sm w-full mt-8" style={{ color: 'var(--amazon-error)' }}
+                onClick={() => { leaveCommonCart(activeCart.id, currentUserId); showToast(`Left "${activeCart.name}"`, 'info'); router.push('/voice-cart'); }}>
+                🚪 Leave Cart
+              </button>
+            )}
           </>
         )}
       </div>

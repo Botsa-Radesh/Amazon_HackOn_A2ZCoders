@@ -26,7 +26,7 @@ function getTimeBasedTip(hour: number): string {
 export default function DashboardPage() {
   const router = useRouter();
   const { balance, nextMilestone, redeemOptions, transactions, redeemCoins, streak } = useCoins();
-  const { savedTemplates, deleteTemplate, loadTemplate, totalPrice, totalItems } = useCart();
+  const { carts, activeCartId, personalCartId, activeCart, commonCarts, savedTemplates, deleteTemplate, loadTemplate, totalPrice, totalItems } = useCart();
   const { history } = useOrder();
   const { members, currentUserId, getMemberById } = useMembers();
   const { showToast } = useToast();
@@ -220,6 +220,56 @@ export default function DashboardPage() {
             <p style={{ fontSize: 24, fontWeight: 700, color: '#FFD700' }}>🪙 {balance.toLocaleString()}</p>
           </div>
         </div>
+      </div>
+
+      {/* Your Carts */}
+      <div className="content-section" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 className="section-title" style={{ fontSize: 14, margin: 0 }}>🛒 Your Carts</h3>
+          <button className="btn btn-link btn-sm" onClick={() => router.push('/voice-cart')}>
+            Open Cart
+          </button>
+        </div>
+        {activeCart && (
+          <div className="amazon-card" style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '12px 14px', marginBottom: 8, cursor: 'pointer',
+            border: '1px solid #f0c14b', background: '#fffbf0',
+          }} onClick={() => router.push('/voice-cart')}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 22 }}>{activeCart.type === 'common' ? '🏠' : '🛒'}</span>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-text)' }}>{activeCart.name}</p>
+                <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)' }}>
+                  {activeCart.items.length} items · {activeCart.splitMode} split · {activeCart.memberIds.length} member{activeCart.memberIds.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
+            <span style={{ fontSize: 14, color: 'var(--amazon-orange)' }}>▶</span>
+          </div>
+        )}
+        {commonCarts.filter(cc => cc.id !== activeCartId).map(cc => (
+          <div key={cc.id} className="amazon-card" style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '12px 14px', marginBottom: 6, cursor: 'pointer',
+          }} onClick={() => { router.push('/voice-cart'); }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 22 }}>🏠</span>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-text)' }}>{cc.name}</p>
+                <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)' }}>
+                  {cc.items.length} items · Code: {cc.code}
+                </p>
+              </div>
+            </div>
+            <span style={{ fontSize: 12, color: 'var(--amazon-text-muted)' }}>{cc.memberIds.length} members</span>
+          </div>
+        ))}
+        {!activeCart && commonCarts.length === 0 && (
+          <p style={{ fontSize: 13, color: 'var(--amazon-text-muted)', textAlign: 'center', padding: 16 }}>
+            No active carts. <button className="btn btn-link btn-sm" onClick={() => router.push('/voice-cart')}>Start shopping</button>
+          </p>
+        )}
       </div>
 
       {/* Tabs */}

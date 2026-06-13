@@ -15,7 +15,7 @@ import { CartItem } from '@/types';
 
 export default function SplitPaymentPage() {
   const router = useRouter();
-  const { activeCart } = useCart();
+  const { activeCart, clearCart } = useCart();
   const items = activeCart?.items || [];
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((s, i) => s + i.product.price * i.quantity, 0);
@@ -62,6 +62,7 @@ export default function SplitPaymentPage() {
     const slot = deliverySlots.find(s => s.id === selectedSlot);
     const slotTime = slot?.time || '7-9 AM';
     placeOrder(items, totalPrice, 'auto', payerPayments, slotTime, totalCoins);
+    clearCart();
 
     const orderId = `ord-${Date.now()}`;
     const nonPayerMembers = cartMembers.filter(m => m.id !== currentUserId);

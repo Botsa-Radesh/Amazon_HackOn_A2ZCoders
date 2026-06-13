@@ -1,9 +1,9 @@
 'use client';
-import React, { createContext, useContext, useCallback } from 'react';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import React, { createContext, useContext, useCallback, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 import { useCart } from './CartContext';
 import { SplitMode } from '@/types';
-import { cartApi } from '@/lib/api';
+import { cartApi, inviteApi } from '@/lib/api';
 
 interface PendingInvite {
   code: string;
@@ -22,7 +22,21 @@ const CommonCartContext = createContext<CommonCartContextType | null>(null);
 
 export function CommonCartProvider({ children }: { children: React.ReactNode }) {
   const { createCommonCart: createCart, joinCommonCart, joinCommonCartViaApi, commonCarts } = useCart();
-  const [pendingInvites, setPendingInvites] = useLocalStorage<PendingInvite[]>('voicecart-pending-invites', []);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+  const { userId } = useAuth();
+
+  useEffect(() => {
+    let mounted = true;
+    if (userId) {
+      inviteApi.list(userId).then(res => {
+        if (!mounted) return;
+        if (res.invites && res.invites.length > 0) {
+          setPendingInvites(res.invites);
+        }
+      }).catch(() => {});
+    }
+    return () => { mounted = false; };
+  }, [userId]);
 
   const createCommonCartHandler = useCallback((name: string, creatorId: string, creatorName: string, splitMode: SplitMode): string => {
     const cart = createCart(name, creatorId, creatorName, splitMode);
@@ -42,10 +56,11 @@ export function CommonCartProvider({ children }: { children: React.ReactNode }) 
     const apiResult = await joinCommonCartViaApi(code, userId);
     if (apiResult) {
       setPendingInvites(prev => prev.filter(i => i.code.toUpperCase() !== code.toUpperCase()));
+      inviteApi.accept(code, userId, userId).catch(() => {});
       return true;
     }
     return false;
-  }, [joinCommonCart, joinCommonCartViaApi, commonCarts, setPendingInvites]);
+  }, [joinCommonCart, joinCommonCartViaApi, commonCarts, userId]);
 
   const addInvite = useCallback((code: string, cartName: string, creatorName: string) => {
     setPendingInvites(prev => {

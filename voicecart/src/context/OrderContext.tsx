@@ -1,8 +1,9 @@
 'use client';
-import React, { createContext, useContext, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useCallback, useMemo, useEffect, useState } from 'react';
 import { Order, CartItem, Member, SplitMode, MemberPayment, DeliverySlot, SplitRequest } from '@/types';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { syncOrderToAPI } from '@/lib/sync';
+import { syncOrderToAPI, fetchOrdersFromAPI } from '@/lib/sync';
+import { useAuth } from './AuthContext';
+import { appConfigApi, splitApi } from '@/lib/api';
 
 function generateSplitId(): string {
   return `spr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -32,10 +33,52 @@ const defaultSlots: DeliverySlot[] = [
 const OrderContext = createContext<OrderContextType | null>(null);
 
 export function OrderProvider({ children }: { children: React.ReactNode }) {
-  const [currentOrder, setCurrentOrder] = useLocalStorage<Order | null>('voicecart-current-order', null);
-  const [history, setHistory] = useLocalStorage<Order[]>('voicecart-order-history', []);
-  const [deliverySlots, setDeliverySlots] = useLocalStorage<DeliverySlot[]>('voicecart-slots', defaultSlots);
-  const [splitRequests, setSplitRequests] = useLocalStorage<SplitRequest[]>('voicecart-split-requests', []);
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
+  const [history, setHistory] = useState<Order[]>([]);
+  const [deliverySlots, setDeliverySlots] = useState<DeliverySlot[]>(defaultSlots);
+  const [splitRequests, setSplitRequests] = useState<SplitRequest[]>([]);
+  const { userId } = useAuth();
+
+  useEffect(() => {
+    let uid = userId;
+    if (!uid) {
+      try {
+        const stored = localStorage.getItem('voicecart-auth-user');
+        if (stored) {
+          const u = JSON.parse(stored);
+          uid = u?.id;
+        }
+      } catch {}
+    }
+    if (!uid) uid = localStorage.getItem('voicecart-guest-id') || '';
+
+    if (uid) {
+      let mounted = true;
+      fetchOrdersFromAPI(uid).then((orders: any[]) => {
+        if (!mounted) return;
+        if (orders && orders.length > 0) {
+          orders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          setHistory(orders);
+        }
+      }).catch(() => {});
+
+      appConfigApi.get('deliverySlots').then(res => {
+        if (!mounted) return;
+        if (res.config && res.config.length > 0) {
+          setDeliverySlots(res.config);
+        }
+      }).catch(() => {});
+
+      splitApi.list(uid).then(res => {
+        if (!mounted) return;
+        if (res.splits && res.splits.length > 0) {
+          setSplitRequests(res.splits);
+        }
+      }).catch(() => {});
+
+      return () => { mounted = false; };
+    }
+  }, [userId, setHistory]);
 
   const placeOrder = useCallback((
     items: CartItem[], total: number, splitMode: SplitMode, payments: MemberPayment[], slot: string, coinsEarned: number
@@ -57,12 +100,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   }, [setCurrentOrder, setHistory]);
 
   const voteSlot = useCallback((slotId: string, memberId: string) => {
-    setDeliverySlots(prev => prev.map(slot => {
-      if (slot.id !== slotId) return { ...slot, votes: slot.votes.filter(v => v !== memberId) };
-      const hasVoted = slot.votes.includes(memberId);
-      return { ...slot, votes: hasVoted ? slot.votes.filter(v => v !== memberId) : [...slot.votes, memberId] };
-    }));
-  }, [setDeliverySlots]);
+    setDeliverySlots(prev => {
+      const next = prev.map(slot => {
+        if (slot.id !== slotId) return { ...slot, votes: slot.votes.filter(v => v !== memberId) };
+        const hasVoted = slot.votes.includes(memberId);
+        return { ...slot, votes: hasVoted ? slot.votes.filter(v => v !== memberId) : [...slot.votes, memberId] };
+      });
+      appConfigApi.update('deliverySlots', next).catch(() => {});
+      return next;
+    });
+  }, []);
 
   const clearCurrentOrder = useCallback(() => {
     setCurrentOrder(null);
@@ -75,13 +122,15 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date().toISOString(),
     };
     setSplitRequests(prev => [split, ...prev]);
-  }, [setSplitRequests]);
+    splitApi.create(split).catch(() => {});
+  }, []);
 
   const markSplitPaid = useCallback((splitId: string) => {
     setSplitRequests(prev => prev.map(s =>
       s.id === splitId ? { ...s, status: 'paid' as const, paidAt: new Date().toISOString() } : s
     ));
-  }, [setSplitRequests]);
+    splitApi.update(splitId, { status: 'paid', paidAt: new Date().toISOString() }).catch(() => {});
+  }, []);
 
   const getPendingSplitsForMember = useCallback((memberId: string) => {
     return splitRequests.filter(s => s.fromMemberId === memberId && s.status === 'pending');
