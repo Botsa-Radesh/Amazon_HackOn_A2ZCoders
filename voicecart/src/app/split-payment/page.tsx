@@ -63,13 +63,15 @@ export default function SplitPaymentPage() {
     const cartSplitMode = activeCart?.splitMode || 'auto';
     placeOrder(items, totalPrice, cartSplitMode, payerPayments, slotTime, totalCoins);
 
-    // Mark cart as checked out in DynamoDB so other members see it
+    // Delete all items from the cart in DynamoDB so it resets to 0 but keeps the cart alive
     if (activeCart?.id) {
-      fetch(`/api/carts/${activeCart.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ checkedOut: true, checkedOutBy: currentUserId, checkedOutAt: new Date().toISOString() }),
-      }).catch(() => {});
+      items.forEach(item => {
+        fetch(`/api/carts/${activeCart.id}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemId: item.id }),
+        }).catch(() => {});
+      });
     }
 
     clearCart();

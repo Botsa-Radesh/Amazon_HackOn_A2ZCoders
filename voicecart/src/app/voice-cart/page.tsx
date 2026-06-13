@@ -716,6 +716,12 @@ function VoiceCartPageInner() {
               onClick={() => router.push('/search')}>
               Browse Products
             </button>
+            {activeCart?.type === 'common' && (
+              <button className="btn btn-ghost btn-sm w-full mt-8" style={{ color: 'var(--amazon-error)' }}
+                onClick={() => { leaveCommonCart(activeCart.id, currentUserId); showToast(`Left "${activeCart.name}"`, 'info'); router.push('/voice-cart'); }}>
+                🚪 Leave Cart
+              </button>
+            )}
           </div>
         ) : (
           <>
