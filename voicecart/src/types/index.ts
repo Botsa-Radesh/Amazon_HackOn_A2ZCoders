@@ -33,6 +33,9 @@ export interface Cart {
   items: CartItem[];
   isActive: boolean;
   createdAt: string;
+  checkedOut?: boolean;
+  checkedOutBy?: string;
+  checkedOutAt?: string;
 }
 
 export type PaymentMethod = 'amazon_pay' | 'phonepay' | 'paytm' | 'gpay' | 'card';

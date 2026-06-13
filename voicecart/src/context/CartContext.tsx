@@ -138,6 +138,27 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [userId]);
 
+  // Poll for cart updates every 10 seconds (detects when another member checks out)
+  useEffect(() => {
+    const uid = userId || getCurrentUserId();
+    const interval = setInterval(() => {
+      fetchCartsFromAPI(uid).then(fetchedCarts => {
+        if (fetchedCarts && fetchedCarts.length > 0) {
+          setCarts(prev => {
+            const next = { ...prev };
+            fetchedCarts.forEach((c: any) => {
+              const existing = next[c.id];
+              // Update checkedOut status and items from DB
+              next[c.id] = { ...(existing || {}), ...c, items: c.items || existing?.items || [], isActive: true };
+            });
+            return next;
+          });
+        }
+      }).catch(() => {});
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [userId]);
+
   const activeCart = useMemo(() => {
     if (!activeCartId || !carts[activeCartId]) return null;
     return carts[activeCartId];

@@ -778,10 +778,25 @@ function VoiceCartPageInner() {
             </div>
 
             {/* Checkout Button */}
-            <button className="btn btn-primary btn-lg w-full mt-16"
-              onClick={() => router.push('/split-payment')}>
-              🛒 Proceed to Checkout
-            </button>
+            {activeCart?.checkedOut ? (
+              <div className="amazon-card animate-fadeIn" style={{ padding: 16, textAlign: 'center', borderColor: 'var(--amazon-success)', background: '#f0fff4' }}>
+                <span style={{ fontSize: 32 }}>✅</span>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--amazon-success)', marginTop: 8 }}>
+                  Order already placed!
+                </p>
+                <p style={{ fontSize: 12, color: 'var(--amazon-text-secondary)', marginTop: 4 }}>
+                  Check your Splits tab to see your share.
+                </p>
+                <button className="btn btn-primary btn-sm mt-12" onClick={() => router.push('/splits')}>
+                  💰 View My Splits
+                </button>
+              </div>
+            ) : (
+              <button className="btn btn-primary btn-lg w-full mt-16"
+                onClick={() => router.push('/split-payment')}>
+                🛒 Proceed to Checkout
+              </button>
+            )}
 
             {/* Clear Cart */}
             <button className="btn btn-ghost btn-sm w-full mt-8" style={{ color: 'var(--amazon-error)' }}

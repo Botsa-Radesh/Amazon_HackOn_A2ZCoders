@@ -44,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ item: body.updates });
     }
 
-    const allowed = ['name', 'splitMode', 'memberIds', 'type', 'code', 'createdBy'];
+    const allowed = ['name', 'splitMode', 'memberIds', 'type', 'code', 'createdBy', 'checkedOut', 'checkedOutBy', 'checkedOutAt'];
     const updates: Record<string, any> = {};
     for (const key of allowed) {
       if (body[key] !== undefined) updates[key] = body[key];

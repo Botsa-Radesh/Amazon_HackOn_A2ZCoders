@@ -62,6 +62,16 @@ export default function SplitPaymentPage() {
     const slot = deliverySlots.find(s => s.id === selectedSlot);
     const slotTime = slot?.time || '7-9 AM';
     placeOrder(items, totalPrice, 'auto', payerPayments, slotTime, totalCoins);
+
+    // Mark cart as checked out in DynamoDB so other members see it
+    if (activeCart?.id) {
+      fetch(`/api/carts/${activeCart.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checkedOut: true, checkedOutBy: currentUserId, checkedOutAt: new Date().toISOString() }),
+      }).catch(() => {});
+    }
+
     clearCart();
 
     const orderId = `ord-${Date.now()}`;
