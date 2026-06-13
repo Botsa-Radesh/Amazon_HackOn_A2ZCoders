@@ -204,6 +204,7 @@ export default function SplitPaymentPage() {
 
           {/* Expected Split */}
           {(() => {
+            const cartSplitMode = activeCart?.splitMode || 'auto';
             const splitEntries: { id: string; name: string; avatar: string; total: number; count: number; isPayer: boolean }[] = [];
             const seen = new Set<string>();
             for (const item of items) {
@@ -221,15 +222,30 @@ export default function SplitPaymentPage() {
                 isPayer: item.addedBy === currentUserId,
               });
             }
-            const nonPayerTotal = splitEntries.filter(e => !e.isPayer).reduce((s, e) => s + e.total, 0);
+
+            const modeTitle = cartSplitMode === 'family' ? 'Family' : cartSplitMode === 'equal' ? 'Equal' : cartSplitMode === 'custom' ? 'Custom' : 'Auto';
+            const modeDesc = cartSplitMode === 'family'
+              ? 'One person pays everything. No splits needed.'
+              : cartSplitMode === 'equal'
+              ? `Total ÷ ${cartMembers.length} members = ₹${Math.round(totalPrice / Math.max(cartMembers.length, 1))} each.`
+              : 'Each person pays for the items they added. Payer pays full bill upfront, others reimburse later.';
+
             return (
-              <div className="content-section" style={{ marginBottom: 16, borderColor: '#be95ff' }}>
-                <h3 className="section-title">📊 Expected Split (Auto)</h3>
+              <div className="content-section" style={{ marginBottom: 16, borderColor: cartSplitMode === 'family' ? '#b7e4c7' : '#be95ff' }}>
+                <h3 className="section-title">📊 Expected Split ({modeTitle})</h3>
                 <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)', marginBottom: 8 }}>
-                  Each person pays for the items they added. Payer pays full bill upfront, others reimburse later.
+                  {modeDesc}
                 </p>
                 {splitEntries.map(entry => {
-                  const share = entry.isPayer ? totalPrice - nonPayerTotal : entry.total;
+                  let share = 0;
+                  if (cartSplitMode === 'family') {
+                    share = entry.isPayer ? totalPrice : 0;
+                  } else if (cartSplitMode === 'equal') {
+                    share = Math.round(totalPrice / Math.max(cartMembers.length, 1));
+                  } else {
+                    const nonPayerTotal = splitEntries.filter(e => !e.isPayer).reduce((s, e) => s + e.total, 0);
+                    share = entry.isPayer ? totalPrice - nonPayerTotal : entry.total;
+                  }
                   return (
                     <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--amazon-border-light)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -242,15 +258,21 @@ export default function SplitPaymentPage() {
                             )}
                           </p>
                           <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)' }}>
-                            {entry.count} item{entry.count !== 1 ? 's' : ''} added
-                            {entry.isPayer && ' · pays full bill'}
+                            {cartSplitMode === 'family'
+                              ? (entry.isPayer ? 'Pays everything' : 'No payment needed')
+                              : `${entry.count} item${entry.count !== 1 ? 's' : ''} added${entry.isPayer ? ' · pays full bill' : ''}`}
                           </p>
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--amazon-price)' }}>₹{share}</p>
-                        {!entry.isPayer && (
+                        <p style={{ fontSize: 16, fontWeight: 700, color: share > 0 ? 'var(--amazon-price)' : 'var(--amazon-success)' }}>
+                          {share > 0 ? `₹${share}` : '₹0'}
+                        </p>
+                        {!entry.isPayer && cartSplitMode !== 'family' && share > 0 && (
                           <p style={{ fontSize: 10, color: 'var(--amazon-text-muted)' }}>owes {payerMember?.name}</p>
+                        )}
+                        {!entry.isPayer && cartSplitMode === 'family' && (
+                          <p style={{ fontSize: 10, color: 'var(--amazon-success)' }}>✓ Covered</p>
                         )}
                       </div>
                     </div>
