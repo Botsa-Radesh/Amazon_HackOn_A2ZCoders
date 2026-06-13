@@ -76,6 +76,7 @@ export default function SplitPaymentPage() {
         orderId,
         fromMemberId: m.id,
         toMemberId: currentUserId,
+        payerUserId: currentUserId,
         fromName: m.name,
         toName: getMemberById(currentUserId)?.name || 'Payer',
         amount,

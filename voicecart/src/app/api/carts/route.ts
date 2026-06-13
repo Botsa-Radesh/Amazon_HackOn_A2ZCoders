@@ -68,10 +68,12 @@ export async function POST(req: NextRequest) {
     // Use client-provided id if available, otherwise generate one
     const cartId = cart.id || `cart-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const code = cart.code || generateCode();
+    // Only set GSI2 if there's a code (for common carts lookup by code)
+    const gsi2Fields = code ? Keys.cartByCode(code) : {};
 
     const item = {
       ...Keys.cart(cartId),
-      ...Keys.cartByCode(code),
+      ...gsi2Fields,
       id: cartId,
       code,
       name: cart.name || 'My Cart',

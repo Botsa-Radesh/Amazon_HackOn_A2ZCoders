@@ -13,8 +13,17 @@ export default function SplitsPage() {
   const { members, currentUserId, getMemberById } = useMembers();
   const { showToast } = useToast();
 
-  const pendingSplits = useMemo(() => getPendingSplitsForMember(currentUserId), [currentUserId, getPendingSplitsForMember]);
-  const sentSplits = useMemo(() => getSentSplitsForMember(currentUserId), [currentUserId, getSentSplitsForMember]);
+  const pendingSplits = useMemo(() => {
+    // "I Owe" — splits where I am the debtor
+    return splitRequests.filter(s => 
+      s.fromMemberId === currentUserId && s.status === 'pending'
+    );
+  }, [currentUserId, splitRequests]);
+  
+  const sentSplits = useMemo(() => {
+    // "Others Owe Me" — splits where I am the payer/creditor
+    return splitRequests.filter(s => s.toMemberId === currentUserId);
+  }, [currentUserId, splitRequests]);
   const history = useMemo(() => splitRequests.filter(s => s.status === 'paid'), [splitRequests]);
 
   const handleMarkPaid = (splitId: string) => {

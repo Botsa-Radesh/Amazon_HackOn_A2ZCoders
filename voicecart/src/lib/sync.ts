@@ -17,24 +17,17 @@ function emit(event: SyncEvent) {
 export async function syncCartToAPI(cart: any) {
   try {
     if (cart.id) {
-      // Try to update first; if it fails (cart not in DB), create it
-      try {
-        await cartApi.update(cart.id, {
-          name: cart.name,
-          splitMode: cart.splitMode,
-          memberIds: cart.memberIds,
-        });
-      } catch {
-        // Cart doesn't exist in DB yet, create it
-        await cartApi.create({
-          id: cart.id,
-          name: cart.name,
-          type: cart.type || 'personal',
-          splitMode: cart.splitMode,
-          memberIds: cart.memberIds,
-          creatorId: cart.createdBy,
-        });
-      }
+      // Always create/overwrite the full cart record to ensure all fields exist in DB
+      // DynamoDB PutCommand is idempotent — safe to call multiple times
+      await cartApi.create({
+        id: cart.id,
+        code: cart.code || '',
+        name: cart.name,
+        type: cart.type || 'personal',
+        splitMode: cart.splitMode,
+        memberIds: cart.memberIds,
+        creatorId: cart.createdBy,
+      });
     }
     emit('cart-update');
   } catch {}

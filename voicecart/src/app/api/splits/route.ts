@@ -11,16 +11,28 @@ export async function GET(req: NextRequest) {
 
     const client = getDynamoClient();
     
-    // We get splits where the user is either the requester (fromMemberId) or the payer (toMemberId).
-    // Let's just scan for now, or if we want to be efficient, we can query by USERSPLITS index.
-    // For simplicity of single table design, we can query the USERSPLITS#userId index.
+    // Query splits stored under this user's ID
     const result = await client.send(new QueryCommand({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
       ExpressionAttributeValues: { ':pk': `USERSPLITS#${userId}`, ':sk': 'SPLIT#' },
     }));
 
-    return NextResponse.json({ splits: result.Items || [] });
+    let splits = result.Items || [];
+
+    // Also scan for splits where this user is fromMemberId or toMemberId
+    // (handles cases where member ID differs from auth user ID)
+    if (splits.length === 0) {
+      const { ScanCommand } = await import('@aws-sdk/lib-dynamodb');
+      const scanResult = await client.send(new ScanCommand({
+        TableName: TABLE_NAME,
+        FilterExpression: 'begins_with(pk, :pk) AND (fromMemberId = :uid OR toMemberId = :uid)',
+        ExpressionAttributeValues: { ':pk': 'SPLIT#', ':uid': userId },
+      }));
+      splits = scanResult.Items || [];
+    }
+
+    return NextResponse.json({ splits });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -36,22 +48,31 @@ export async function POST(req: NextRequest) {
       ...Keys.splitRequest(splitId),
       id: splitId,
       ...split,
-      createdAt: new Date().toISOString(),
+      createdAt: split.createdAt || new Date().toISOString(),
     };
 
     await client.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
 
-    // Also store copies for both users for easy querying
+    // Store copies for both users for easy querying
+    // Store under fromMemberId
     if (split.fromMemberId) {
       await client.send(new PutCommand({
         TableName: TABLE_NAME,
-        Item: { ...item, ...Keys.userSplits(split.fromMemberId), sk: `SPLIT#${splitId}` },
+        Item: { ...item, pk: `USERSPLITS#${split.fromMemberId}`, sk: `SPLIT#${splitId}` },
       }));
     }
+    // Store under toMemberId
     if (split.toMemberId) {
       await client.send(new PutCommand({
         TableName: TABLE_NAME,
-        Item: { ...item, ...Keys.userSplits(split.toMemberId), sk: `SPLIT#${splitId}` },
+        Item: { ...item, pk: `USERSPLITS#${split.toMemberId}`, sk: `SPLIT#${splitId}` },
+      }));
+    }
+    // Also store under payerUserId if provided (auth user ID of the payer)
+    if (split.payerUserId && split.payerUserId !== split.toMemberId) {
+      await client.send(new PutCommand({
+        TableName: TABLE_NAME,
+        Item: { ...item, pk: `USERSPLITS#${split.payerUserId}`, sk: `SPLIT#${splitId}` },
       }));
     }
 

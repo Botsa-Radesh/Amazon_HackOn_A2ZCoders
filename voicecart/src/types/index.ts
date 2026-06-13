@@ -145,6 +145,7 @@ export interface SplitRequest {
   orderId: string;
   fromMemberId: string;
   toMemberId: string;
+  payerUserId?: string;
   fromName: string;
   toName: string;
   amount: number;
