@@ -10,7 +10,6 @@ import { CoinsAnimation } from '@/components/CoinsAnimation';
 import { Confetti } from '@/components/Confetti';
 import { DeliverySlotVoting } from '@/components/DeliverySlotVoting';
 import { calculateCoinsEarned } from '@/utils/coinsCalculator';
-import { calculateMemberSubtotal } from '@/utils/priceCalc';
 import { CartItem } from '@/types';
 
 export default function SplitPaymentPage() {
@@ -61,7 +60,8 @@ export default function SplitPaymentPage() {
 
     const slot = deliverySlots.find(s => s.id === selectedSlot);
     const slotTime = slot?.time || '7-9 AM';
-    placeOrder(items, totalPrice, 'auto', payerPayments, slotTime, totalCoins);
+    const cartSplitMode = activeCart?.splitMode || 'auto';
+    placeOrder(items, totalPrice, cartSplitMode, payerPayments, slotTime, totalCoins);
 
     // Mark cart as checked out in DynamoDB so other members see it
     if (activeCart?.id) {
@@ -74,28 +74,46 @@ export default function SplitPaymentPage() {
 
     clearCart();
 
+    // Create split requests based on the cart's split mode
     const orderId = `ord-${Date.now()}`;
     const nonPayerMembers = cartMembers.filter(m => m.id !== currentUserId);
-    for (const m of nonPayerMembers) {
-      const amount = calculateMemberSubtotal(items, m.id);
-      if (amount <= 0) continue;
-      const memberItems = items
-        .filter(i => i.addedBy === m.id)
-        .map(i => ({ productId: i.product.id, name: i.product.name, quantity: i.quantity, price: i.product.price }));
-      addSplitRequest({
-        orderId,
-        fromMemberId: m.id,
-        toMemberId: currentUserId,
-        payerUserId: currentUserId,
-        fromName: m.name,
-        toName: getMemberById(currentUserId)?.name || 'Payer',
-        amount,
-        splitMode: 'auto',
-        items: memberItems,
-        status: 'pending',
-        orderTotal: totalPrice,
-        deliverySlot: slotTime,
-      });
+
+    if (cartSplitMode !== 'family' && nonPayerMembers.length > 0) {
+      for (const m of nonPayerMembers) {
+        let amount = 0;
+        let memberItems: { productId: string; name: string; quantity: number; price: number }[] = [];
+
+        if (cartSplitMode === 'equal') {
+          // Equal: total divided by all members
+          amount = Math.round(totalPrice / cartMembers.length);
+          memberItems = items.map(i => ({ productId: i.product.id, name: i.product.name, quantity: i.quantity, price: i.product.price }));
+        } else {
+          // Auto: each person pays for items they added + share of shared items
+          const personalItems = items.filter(i => i.addedBy === m.id && !i.isShared);
+          const personalTotal = personalItems.reduce((s, i) => s + i.product.price * i.quantity, 0);
+          const sharedTotal = items.filter(i => i.isShared).reduce((s, i) => s + i.product.price * i.quantity, 0);
+          const sharedShare = cartMembers.length > 0 ? Math.round(sharedTotal / cartMembers.length) : 0;
+          amount = personalTotal + sharedShare;
+          memberItems = personalItems.map(i => ({ productId: i.product.id, name: i.product.name, quantity: i.quantity, price: i.product.price }));
+        }
+
+        if (amount <= 0) continue;
+
+        addSplitRequest({
+          orderId,
+          fromMemberId: m.id,
+          toMemberId: currentUserId,
+          payerUserId: currentUserId,
+          fromName: m.name,
+          toName: getMemberById(currentUserId)?.name || 'Payer',
+          amount,
+          splitMode: cartSplitMode,
+          items: memberItems,
+          status: 'pending',
+          orderTotal: totalPrice,
+          deliverySlot: slotTime,
+        });
+      }
     }
 
     setIsProcessing(false);
