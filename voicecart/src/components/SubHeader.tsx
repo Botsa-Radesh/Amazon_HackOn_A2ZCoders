@@ -10,6 +10,7 @@ const categoryLinks = [
   { href: '/dashboard', label: 'Dashboard', emoji: '📊' },
   { href: '/members', label: 'Members', emoji: '👥' },
   { href: '/split-payment', label: 'Split & Pay', emoji: '💳' },
+  { href: '/splits', label: 'My Splits', emoji: '💰' },
 ];
 
 export function SubHeader() {
