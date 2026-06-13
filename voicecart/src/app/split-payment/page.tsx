@@ -245,8 +245,15 @@ export default function SplitPaymentPage() {
                   } else if (cartSplitMode === 'equal') {
                     share = Math.round(totalPrice / Math.max(cartMembers.length, 1));
                   } else {
-                    const nonPayerTotal = splitEntries.filter(e => !e.isPayer).reduce((s, e) => s + e.total, 0);
-                    share = entry.isPayer ? totalPrice - nonPayerTotal : entry.total;
+                    const sharedTotal = items.filter(i => i.isShared).reduce((s, i) => s + i.product.price * i.quantity, 0);
+                    const sharedShare = Math.round(sharedTotal / Math.max(cartMembers.length, 1));
+                    
+                    if (entry.isPayer) {
+                      const nonPayerTotal = splitEntries.filter(e => !e.isPayer).reduce((s, e) => s + e.total + sharedShare, 0);
+                      share = totalPrice - nonPayerTotal;
+                    } else {
+                      share = entry.total + sharedShare;
+                    }
                   }
                   return (
                     <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--amazon-border-light)' }}>
