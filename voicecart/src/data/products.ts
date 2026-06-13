@@ -1,37 +1,8 @@
 import { Product } from '@/types';
 
-// Using reliable placeholder service with product-specific colors
+// Realistic product images from Unsplash via picsum.photos (seed-based = deterministic)
 function img(id: string): string {
-  const queries: Record<string, string> = {
-    onion: 'Onion', tomato: 'Tomato', potato: 'Potato', banana: 'Banana',
-    apple: 'Apple', spinach: 'Spinach', capsicum: 'Capsicum Bell Pepper',
-    carrot: 'Carrot', cucumber: 'Cucumber', garlic: 'Garlic', ginger: 'Ginger',
-    lemon: 'Lemon', grapes: 'Grapes', orange: 'Orange',
-    milk: 'Milk Bottle', milk2: 'Milk', curd: 'Curd Yogurt', paneer: 'Paneer',
-    butter: 'Butter', cream: 'Fresh Cream', ghee: 'Ghee', yogurt: 'Yogurt',
-    cheeseSlice: 'Cheese Slices', eggs: 'Eggs',
-    rice: 'Rice Grains', toordal: 'Toor Dal', flour: 'Wheat Flour',
-    sugar: 'Sugar', oil: 'Cooking Oil', salt: 'Salt',
-    turmeric: 'Turmeric Powder', chilli: 'Red Chilli Powder',
-    garammasala: 'Garam Masala', chicken: 'Raw Chicken', moongdal: 'Moong Dal',
-    channadal: 'Chana Dal', mustardoil: 'Mustard Oil', poha: 'Poha Flattened Rice',
-    semolina: 'Sooji Rava', coriander: 'Coriander Powder', fish: 'Fish',
-    mutton: 'Mutton Meat', bread: 'Bread Loaf',
-    maggi: 'Maggi Noodles', lays: 'Lays Chips', parleg: 'Parle G Biscuits',
-    haldiram: 'Haldiram Namkeen', peanutbutter: 'Peanut Butter',
-    cornflakes: 'Corn Flakes', oreo: 'Oreo Biscuits', chips: 'Potato Chips',
-    coldcoffee: 'Cold Coffee', cocacola: 'Coca Cola', sprite: 'Sprite Soda',
-    mangojuice: 'Mango Juice', greentea: 'Green Tea', chai: 'Chai Tea',
-    coffee: 'Coffee', bournvita: 'Bournvita',
-    shampoo: 'Shampoo', facewash: 'Face Wash', soap: 'Bath Soap',
-    toothpaste: 'Toothpaste', handwash: 'Hand Wash', sanitizer: 'Hand Sanitizer',
-    detergent: 'Detergent Powder', floorcleaner: 'Floor Cleaner',
-    dishwash: 'Dishwash Liquid', toiletcleaner: 'Toilet Cleaner',
-    tissuepaper: 'Tissue Paper', mosquitorep: 'Mosquito Repellent Coil',
-    condensedmilk: 'Condensed Milk', panipuri: 'Pani Puri',
-  };
-  const q = encodeURIComponent(queries[id] || id);
-  return `https://source.unsplash.com/200x200/?${q}`;
+  return `https://picsum.photos/seed/${id}/200/200`;
 }
 
 export const products: Product[] = [

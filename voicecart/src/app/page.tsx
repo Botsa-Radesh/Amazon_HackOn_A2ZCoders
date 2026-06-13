@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCoins } from '@/context/CoinsContext';
@@ -21,32 +21,19 @@ const categories = [
 ];
 
 function ProductImage({ src, alt, emoji }: { src: string; alt: string; emoji: string }) {
-  const imgRef = useRef<HTMLImageElement>(null);
   const [failed, setFailed] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    setFailed(false);
-    setLoaded(false);
-  }, [src]);
 
   return (
     <div className="product-image-wrapper">
-      {!failed ? (
-        <img
-          ref={imgRef}
-          src={src}
-          alt={alt}
-          loading="lazy"
-          onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
-          style={{ opacity: loaded ? 1 : 0 }}
-        />
-      ) : null}
-      {(!loaded || failed) && (
-        <span className="product-emoji-fallback" style={{ position: failed ? 'absolute' : 'relative' }}>
-          {emoji}
-        </span>
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        style={{ display: failed ? 'none' : 'block' }}
+      />
+      {failed && (
+        <span className="product-emoji-fallback">{emoji}</span>
       )}
     </div>
   );
