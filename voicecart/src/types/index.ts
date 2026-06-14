@@ -157,6 +157,7 @@ export interface SplitRequest {
   status: 'pending' | 'paid';
   createdAt: string;
   paidAt?: string;
+  paymentMethod?: PaymentMethod | 'cash';
   orderTotal: number;
   deliverySlot: string;
 }

@@ -18,7 +18,7 @@ interface OrderContextType {
   clearCurrentOrder: () => void;
   splitRequests: SplitRequest[];
   addSplitRequest: (req: Omit<SplitRequest, 'id' | 'createdAt'>) => void;
-  markSplitPaid: (splitId: string) => void;
+  markSplitPaid: (splitId: string, paymentMethod?: string) => void;
   getPendingSplitsForMember: (memberId: string) => SplitRequest[];
   getSentSplitsForMember: (memberId: string) => SplitRequest[];
 }
@@ -125,11 +125,11 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     splitApi.create(split).catch(() => {});
   }, []);
 
-  const markSplitPaid = useCallback((splitId: string) => {
+  const markSplitPaid = useCallback((splitId: string, paymentMethod?: string) => {
     setSplitRequests(prev => prev.map(s =>
-      s.id === splitId ? { ...s, status: 'paid' as const, paidAt: new Date().toISOString() } : s
+      s.id === splitId ? { ...s, status: 'paid' as const, paidAt: new Date().toISOString(), paymentMethod: (paymentMethod || 'cash') as any } : s
     ));
-    splitApi.update(splitId, { status: 'paid', paidAt: new Date().toISOString() }).catch(() => {});
+    splitApi.update(splitId, { status: 'paid', paidAt: new Date().toISOString(), paymentMethod: paymentMethod || 'cash' }).catch(() => {});
   }, []);
 
   const getPendingSplitsForMember = useCallback((memberId: string) => {
