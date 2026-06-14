@@ -285,9 +285,8 @@ export default function CheckoutPage() {
           <div className="content-section" style={{ marginBottom: 16 }}>
             <h3 className="section-title">🚚 Select Delivery Slot</h3>
             <DeliverySlotVoting
-              slots={deliverySlots}
-              onSelect={handleSlotSelect}
-              selectedSlotId={selectedSlot}
+              onSelectSlot={handleSlotSelect}
+              selectedSlot={selectedSlot}
             />
           </div>
 

@@ -204,8 +204,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [userId]);
 
-  // Poll for cart updates every 30 seconds (detects when another member checks out)
-  // Only update checkedOut status and memberIds — never overwrite local items
+  // Poll for cart updates every 5 seconds — merge remote items with local items
   useEffect(() => {
     if (!userId) return;
     const uid = userId;
@@ -216,25 +215,32 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             const next = { ...prev };
             fetchedCarts.forEach((c: any) => {
               const existing = next[c.id];
+              const remoteItems: CartItem[] = c.items || [];
+              
               if (existing) {
-                // Only update metadata (checkedOut, memberIds) — keep local items intact
+                // Merge items: keep all local items + add any remote items not already in local
+                const localItemIds = new Set(existing.items.map((i: CartItem) => i.id));
+                const newRemoteItems = remoteItems.filter((ri: CartItem) => !localItemIds.has(ri.id));
+                const mergedItems = [...existing.items, ...newRemoteItems];
+                
                 next[c.id] = {
                   ...existing,
                   checkedOut: c.checkedOut,
                   checkedOutBy: c.checkedOutBy,
                   checkedOutAt: c.checkedOutAt,
                   memberIds: c.memberIds || existing.memberIds,
+                  items: mergedItems,
                 };
               } else {
                 // New cart we don't have locally — add it fully
-                next[c.id] = { ...c, items: c.items || [], isActive: true };
+                next[c.id] = { ...c, items: remoteItems, isActive: true };
               }
             });
             return next;
           });
         }
       }).catch(() => {});
-    }, 30000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [userId]);
 
