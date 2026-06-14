@@ -1,6 +1,6 @@
 'use client';
-import React, { useState, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useMemo, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useMembers } from '@/context/MembersContext';
 import { useCoins } from '@/context/CoinsContext';
@@ -8,22 +8,22 @@ import { useOrder } from '@/context/OrderContext';
 import { useToast } from '@/components/NotificationToast';
 import { CoinsAnimation } from '@/components/CoinsAnimation';
 import { Confetti } from '@/components/Confetti';
-import { DeliverySlotVoting } from '@/components/DeliverySlotVoting';
 import { CheckoutStepper } from '@/components/CheckoutStepper';
 import { calculateCoinsEarned } from '@/utils/coinsCalculator';
 
-export default function CheckoutPage() {
+function CheckoutPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isInstant = searchParams.get('instant') === 'true';
   const { activeCart, clearCart } = useCart();
   const items = activeCart?.items || [];
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((s, i) => s + i.product.price * i.quantity, 0);
   const { members, currentUserId, getMemberById } = useMembers();
   const { addCoins, streak, incrementStreak } = useCoins();
-  const { placeOrder, deliverySlots, addSplitRequest } = useOrder();
+  const { placeOrder, addSplitRequest } = useOrder();
   const { showToast } = useToast();
 
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [showCoins, setShowCoins] = useState(false);
@@ -31,7 +31,7 @@ export default function CheckoutPage() {
   const [alreadyPaid, setAlreadyPaid] = useState(false);
   const [paidByName, setPaidByName] = useState('');
   const [mySplitAmount, setMySplitAmount] = useState(0);
-  const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<string | null>(isInstant ? 'amazon_pay' : null);
 
   const paymentMethods = [
     { id: 'amazon_pay', name: 'Amazon Pay', icon: '💰', color: '#FF9900', coins: true, desc: 'Earn coins on every order' },
@@ -82,7 +82,6 @@ export default function CheckoutPage() {
   }, [hydrated, activeCart?.id, activeCart?.splitMode, totalPrice, cartMembers.length, currentUserId, items, getMemberById]);
 
   const handleProcessPayment = async () => {
-    if (!selectedSlot) { showToast('Please select a delivery slot!', 'warning'); return; }
     if (!selectedPayment) { showToast('Please select a payment method!', 'warning'); return; }
     if (isProcessing) return;
     setIsProcessing(true);
@@ -137,12 +136,13 @@ export default function CheckoutPage() {
       incrementStreak();
     }
 
-    const slot = deliverySlots.find(s => s.id === selectedSlot);
-    const slotTime = slot?.time || '7-9 AM';
+    const slotTime = 'Express 10-15 min';
     const cartSplitMode = activeCart?.splitMode || 'auto';
     placeOrder(items, totalPrice, cartSplitMode, payerPayments, slotTime, totalCoins);
 
-    // ====== STEP 4: Clear cart items in DynamoDB and reset checkedOut ======
+    // ====== STEP 4: Clear cart items in DynamoDB ======
+    // Keep checkedOut=true with payer info so other members get the payment notification
+    // It will auto-reset when any member starts a new order
     if (activeCart?.id) {
       // Delete all items from DynamoDB
       await Promise.all(items.map(item =>
@@ -152,16 +152,7 @@ export default function CheckoutPage() {
           body: JSON.stringify({ itemId: item.id }),
         }).catch(() => {})
       ));
-      // Reset checkedOut flag so the cart is fresh for next order
-      await fetch(`/api/carts/${activeCart.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ checkedOut: false, checkedOutBy: '', checkedOutAt: '' }),
-      }).catch(() => {});
     }
-
-    // Clear local cart state (items = [], checkedOut = false)
-    clearCart();
 
     // ====== STEP 5: Create split requests for other members ======
     const orderId = `ord-${Date.now()}`;
@@ -204,10 +195,14 @@ export default function CheckoutPage() {
       }
     }
 
+    // Mark as complete BEFORE clearing cart to avoid flash of empty state
     setIsProcessing(false);
     setIsComplete(true);
     setShowCoins(true);
     setShowConfetti(true);
+
+    // Clear cart after marking complete
+    clearCart();
 
     setTimeout(() => {
       setShowCoins(false);
@@ -331,8 +326,52 @@ export default function CheckoutPage() {
             <span>Only one member needs to pay. Others will see their split amount automatically.</span>
           </div>
 
+          {/* ⚡ Express Delivery — One Tap */}
+          <div style={{
+            marginBottom: 16, padding: '16px 20px', borderRadius: 12,
+            background: 'linear-gradient(135deg, #1B5E20, #2E7D32)',
+            color: '#fff', position: 'relative', overflow: 'hidden',
+            boxShadow: '0 4px 16px rgba(27,94,32,0.25)',
+          }}>
+            <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 20 }}>⚡</span>
+                  <span style={{ fontSize: 15, fontWeight: 800 }}>Express Delivery</span>
+                </div>
+                <p style={{ fontSize: 12, opacity: 0.85 }}>
+                  Get it in 10-15 min · Nearest slot auto-selected
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedPayment('amazon_pay');
+                  handleProcessPayment();
+                }}
+                disabled={isProcessing}
+                style={{
+                  padding: '12px 20px', borderRadius: 10, border: 'none',
+                  background: '#FF9900', color: '#111',
+                  fontSize: 13, fontWeight: 800, cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(255,153,0,0.4)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {isProcessing ? '⏳...' : `Pay ₹${totalPrice}`}
+              </button>
+            </div>
+            <p style={{ fontSize: 10, opacity: 0.6, marginTop: 6 }}>
+              🪙 Pays with Amazon Pay · Earns {Math.round(totalPrice * 0.05)} coins
+            </p>
+          </div>
+
+          <div style={{ textAlign: 'center', marginBottom: 16, fontSize: 12, color: 'var(--amazon-text-muted)' }}>
+            — or choose payment method below —
+          </div>
+
           {/* Progress Stepper */}
-          <CheckoutStepper currentStep={selectedSlot ? 3 : 1} />
+          <CheckoutStepper currentStep={selectedPayment ? 3 : 2} />
 
           {/* ===== ITEMS READY TO CHECKOUT ===== */}
           <div className="content-section" style={{ marginBottom: 16 }}>
@@ -421,15 +460,6 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* Delivery Slot */}
-          <div className="content-section" style={{ marginBottom: 16 }}>
-            <h3 className="section-title">🚚 Select Delivery Slot</h3>
-            <DeliverySlotVoting
-              onSelectSlot={(slotId: string) => setSelectedSlot(slotId)}
-              selectedSlot={selectedSlot}
-            />
-          </div>
-
           {/* Payment Method Selection */}
           <div className="content-section" style={{ marginBottom: 16 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--amazon-text)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -500,7 +530,7 @@ export default function CheckoutPage() {
           <button
             className="btn btn-primary btn-lg w-full"
             onClick={handleProcessPayment}
-            disabled={isProcessing || !selectedSlot || !selectedPayment}
+            disabled={isProcessing || !selectedPayment}
             style={{ padding: 16, fontSize: 16 }}
           >
             {isProcessing ? '⏳ Processing Payment...' : `💳 Pay ₹${totalPrice} via ${paymentMethods.find(m => m.id === selectedPayment)?.name || '...'}`}
@@ -512,5 +542,18 @@ export default function CheckoutPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="page-content" style={{ paddingTop: 40, textAlign: 'center' }}>
+        <span style={{ fontSize: 48 }}>⏳</span>
+        <p style={{ fontSize: 14, color: 'var(--amazon-text-secondary)', marginTop: 12 }}>Loading checkout...</p>
+      </div>
+    }>
+      <CheckoutPageInner />
+    </Suspense>
   );
 }

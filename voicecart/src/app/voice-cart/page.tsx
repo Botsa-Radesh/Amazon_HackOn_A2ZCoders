@@ -67,6 +67,8 @@ function VoiceCartPageInner() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [reorderSummary, setReorderSummary] = useState<ReorderSummary | null>(null);
   const [dismissedReorder, setDismissedReorder] = useState(false);
+  const [voiceCheckoutPending, setVoiceCheckoutPending] = useState(false);
+  const [voiceCheckoutProcessing, setVoiceCheckoutProcessing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const cartRef = useRef<HTMLDivElement>(null);
 
@@ -309,6 +311,83 @@ function VoiceCartPageInner() {
       }
       case 'CHECKOUT': {
         router.push('/checkout');
+        break;
+      }
+      case 'VOICE_CHECKOUT': {
+        if (!activeCart || totalItems === 0) {
+          speak('Your cart is empty. Add some items first!');
+          showToast('Cart is empty!', 'warning');
+          break;
+        }
+        // Announce total and ask for confirmation
+        const itemCount = totalItems;
+        const cartTotal = totalPrice;
+        speak(`Your total is ${cartTotal} rupees for ${itemCount} items. Delivery in 10 minutes. Say confirm to pay with Amazon Pay.`);
+        setAiResponse(`🛒 Total: ₹${cartTotal} (${itemCount} items)\n🚚 Express: 10 min delivery\n💰 Amazon Pay\n\n🎤 Say "confirm" to place order`);
+        setVoiceCheckoutPending(true);
+        showToast('Say "confirm" to place order', 'info');
+        break;
+      }
+      case 'CONFIRM_ORDER': {
+        if (!voiceCheckoutPending) {
+          speak('Say checkout now first, then confirm to place your order.');
+          break;
+        }
+        if (!activeCart || totalItems === 0) {
+          speak('Your cart is empty!');
+          setVoiceCheckoutPending(false);
+          break;
+        }
+        // Process the voice checkout
+        setVoiceCheckoutPending(false);
+        setVoiceCheckoutProcessing(true);
+        speak('Processing your payment. Please wait.');
+        setAiResponse('⏳ Processing payment via Amazon Pay...');
+
+        try {
+          const res = await fetch('/api/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              cartId: activeCart.id,
+              userId: currentUserId,
+              paymentMethod: 'amazon_pay',
+              deliverySlot: 'Express 10-15 min',
+              splitMode: activeCart.splitMode || 'auto',
+            }),
+          });
+          const data = await res.json();
+
+          if (!res.ok) {
+            if (data.alreadyCheckedOut) {
+              speak('This order was already paid by someone else. Check your splits.');
+              setAiResponse('❌ Already paid by another member');
+            } else {
+              speak('Payment failed. Please try again.');
+              setAiResponse('❌ Payment failed. Try again.');
+            }
+            setVoiceCheckoutProcessing(false);
+            break;
+          }
+
+          // Success!
+          if (data.coinsEarned > 0) {
+            speak(`Order placed! You earned ${data.coinsEarned} coins. Delivery in 10 minutes.`);
+          } else {
+            speak('Order placed successfully! Delivery in 10 minutes.');
+          }
+          setAiResponse(`✅ Order placed!\n🪙 +${data.coinsEarned || 0} coins earned\n🚚 Delivering in 10 minutes`);
+          clearCart();
+          showToast('Order placed! 🎉', 'success');
+          setVoiceCheckoutProcessing(false);
+
+          // Redirect after a moment
+          setTimeout(() => router.push('/order-confirmation'), 2000);
+        } catch {
+          speak('Network error. Please check your connection.');
+          setAiResponse('❌ Network error');
+          setVoiceCheckoutProcessing(false);
+        }
         break;
       }
       case 'REORDER': {
@@ -962,10 +1041,44 @@ function VoiceCartPageInner() {
                 </div>
               </div>
             ) : (
-              <button className="btn btn-primary btn-lg w-full mt-16"
-                onClick={() => router.push('/checkout')}>
-                🛒 Proceed to Checkout
-              </button>
+              <>
+                {/* ⚡ Express Delivery — One Tap Buy */}
+                <div style={{
+                  marginTop: 16, padding: '16px 20px', borderRadius: 12,
+                  background: 'linear-gradient(135deg, #1B5E20, #2E7D32)',
+                  color: '#fff', position: 'relative', overflow: 'hidden',
+                  boxShadow: '0 4px 16px rgba(27,94,32,0.25)',
+                }}>
+                  <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <span style={{ fontSize: 18 }}>⚡</span>
+                        <span style={{ fontSize: 14, fontWeight: 800 }}>Express Delivery</span>
+                      </div>
+                      <p style={{ fontSize: 11, opacity: 0.85 }}>10-15 min · Amazon Pay · Earn {Math.round(totalPrice * 0.05)} coins</p>
+                    </div>
+                    <button
+                      onClick={() => router.push('/checkout?instant=true')}
+                      style={{
+                        padding: '12px 20px', borderRadius: 10, border: 'none',
+                        background: '#FF9900', color: '#111',
+                        fontSize: 13, fontWeight: 800, cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(255,153,0,0.4)',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      ⚡ ₹{totalPrice}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Regular Checkout */}
+                <button className="btn btn-secondary btn-lg w-full mt-8"
+                  onClick={() => router.push('/checkout')}>
+                  🛒 Proceed to Checkout
+                </button>
+              </>
             )}
 
             {/* Clear Cart */}

@@ -83,6 +83,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const placeOrder = useCallback((
     items: CartItem[], total: number, splitMode: SplitMode, payments: MemberPayment[], slot: string, coinsEarned: number
   ) => {
+    const uid = userId || 'unknown';
+    const memberIds = payments.map(p => p.memberId);
     const order: Order = {
       id: `ord-${Date.now()}`,
       date: new Date().toISOString(),
@@ -96,8 +98,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     };
     setCurrentOrder(order);
     setHistory(prev => [order, ...prev]);
-    syncOrderToAPI(order).catch(() => {});
-  }, [setCurrentOrder, setHistory]);
+    // Include userId and memberIds so the API can store it for all members
+    syncOrderToAPI({ ...order, userId: uid, memberIds }).catch(() => {});
+
+    // Reset all delivery slot votes to 0 for the next order
+    setDeliverySlots(prev => {
+      const reset = prev.map(s => ({ ...s, votes: [] as string[] }));
+      appConfigApi.update('deliverySlots', reset).catch(() => {});
+      return reset;
+    });
+  }, [setCurrentOrder, setHistory, userId]);
 
   const voteSlot = useCallback((slotId: string, memberId: string) => {
     setDeliverySlots(prev => {

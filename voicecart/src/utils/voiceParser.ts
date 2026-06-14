@@ -36,7 +36,15 @@ export async function parseVoiceCommand(text: string): Promise<VoiceCommandResul
     return { intent: 'JOIN_CART', params: { code }, originalText: text, response: code ? `Joining cart ${code}!` : 'Please provide a cart code.' };
   }
 
-  if (/checkout|pay now|proceed to pay/i.test(lower)) {
+  if (/checkout now|buy now|place order|order now|pay and deliver|express checkout/i.test(lower)) {
+    return { intent: 'VOICE_CHECKOUT', params: {}, originalText: text, response: '' };
+  }
+
+  if (/^(confirm|yes|confirmed|do it|go ahead|place it|pay)$/i.test(lower.trim())) {
+    return { intent: 'CONFIRM_ORDER', params: {}, originalText: text, response: 'Order confirmed!' };
+  }
+
+  if (/checkout|proceed to pay/i.test(lower)) {
     return { intent: 'CHECKOUT', params: {}, originalText: text, response: 'Taking you to checkout!' };
   }
 

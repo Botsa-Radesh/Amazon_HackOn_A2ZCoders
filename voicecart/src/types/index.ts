@@ -128,7 +128,7 @@ export interface LLMItem {
 }
 
 export interface VoiceCommandResult {
-  intent: 'ADD_ITEM' | 'REMOVE_ITEM' | 'RECIPE' | 'RECIPE_ADD' | 'BUDGET' | 'TEMPLATE' | 'SUMMARY' | 'CHECKOUT' | 'MARK_SHARED' | 'HIGHLIGHT' | 'REORDER' | 'ADD_BATCH' | 'SWITCH_CART' | 'CREATE_COMMON' | 'JOIN_CART' | 'SHOW_CODE' | 'UNKNOWN';
+  intent: 'ADD_ITEM' | 'REMOVE_ITEM' | 'RECIPE' | 'RECIPE_ADD' | 'BUDGET' | 'TEMPLATE' | 'SUMMARY' | 'CHECKOUT' | 'VOICE_CHECKOUT' | 'CONFIRM_ORDER' | 'MARK_SHARED' | 'HIGHLIGHT' | 'REORDER' | 'ADD_BATCH' | 'SWITCH_CART' | 'CREATE_COMMON' | 'JOIN_CART' | 'SHOW_CODE' | 'UNKNOWN';
   params: Record<string, string>;
   items?: LLMItem[];
   originalText: string;
