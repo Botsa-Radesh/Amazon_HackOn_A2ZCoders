@@ -152,8 +152,6 @@ export async function POST(req: NextRequest) {
           .map((i: any) => ({ productId: i.product?.id, name: i.product?.name, quantity: i.quantity, price: i.product?.price }));
 
         const splitData = {
-          pk: `USERSPLITS#${payment.memberId}`,
-          sk: `SPLIT#${splitId}`,
           id: splitId,
           orderId,
           fromMemberId: payment.memberId,
@@ -168,7 +166,18 @@ export async function POST(req: NextRequest) {
           createdAt: new Date().toISOString(),
         };
 
-        await client.send(new PutCommand({ TableName: TABLE_NAME, Item: splitData }));
+        // Store under the person who owes (fromMember)
+        await client.send(new PutCommand({
+          TableName: TABLE_NAME,
+          Item: { ...splitData, pk: `USERSPLITS#${payment.memberId}`, sk: `SPLIT#${splitId}` },
+        }));
+
+        // Also store under the payer so they can track who owes them
+        await client.send(new PutCommand({
+          TableName: TABLE_NAME,
+          Item: { ...splitData, pk: `USERSPLITS#${userId}`, sk: `SPLIT#${splitId}` },
+        }));
+
         splits.push(splitData);
       }
     }

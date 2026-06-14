@@ -6,6 +6,7 @@ import { useCoins } from '@/context/CoinsContext';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/components/NotificationToast';
 import { useMembers } from '@/context/MembersContext';
+import { AddToCartButton } from '@/components/AddToCartButton';
 import { products } from '@/data/products';
 import { Product } from '@/types';
 
@@ -155,12 +156,7 @@ export default function HomePage() {
                       <span style={{ color: '#d97706', marginLeft: 6 }}>⚠️ Low stock</span>
                     )}
                   </div>
-                  <button
-                    className="add-to-cart-btn"
-                    onClick={() => handleAddToCart(product)}
-                  >
-                    Add to Cart
-                  </button>
+                  <AddToCartButton product={product} />
                 </div>
               );
             })}

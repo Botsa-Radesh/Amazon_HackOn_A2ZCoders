@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useMembers } from '@/context/MembersContext';
 import { useToast } from '@/components/NotificationToast';
+import { AddToCartButton } from '@/components/AddToCartButton';
 import { searchProducts } from '@/data/products';
 import { Product } from '@/types';
 
@@ -269,13 +270,7 @@ function SearchResultsInner() {
                       </div>
                     )}
 
-                    <button
-                      className="add-to-cart-btn"
-                      onClick={() => handleAddToCart(product)}
-                      disabled={product.stockStatus === 'out_of_stock'}
-                    >
-                      {product.stockStatus === 'out_of_stock' ? 'Out of Stock' : 'Add to Cart'}
-                    </button>
+                    <AddToCartButton product={product} />
                   </div>
                 );
               })}
