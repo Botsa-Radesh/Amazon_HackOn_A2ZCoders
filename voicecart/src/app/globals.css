@@ -1,35 +1,35 @@
 :root {
-  --amazon-dark: #131921;
-  --amazon-dark-light: #232F3E;
-  --amazon-orange: #FF9900;
-  --amazon-orange-dark: #E68A00;
-  --amazon-orange-light: #febd69;
-  --amazon-yellow: #febd69;
-  --amazon-blue: #007185;
-  --amazon-blue-light: #37475A;
+  --amazon-dark: #1A3626; /* Deep forest green */
+  --amazon-dark-light: #2C523B; /* Lighter forest green */
+  --amazon-orange: #4CAF50; /* Fresh vibrant green as primary */
+  --amazon-orange-dark: #388E3C; /* Darker green for hover */
+  --amazon-orange-light: #81C784; /* Light green */
+  --amazon-yellow: #FFC107; /* Warm yellow for accents */
+  --amazon-blue: #FF7043; /* Bright carrot orange for accents/links */
+  --amazon-blue-light: #FF8A65; 
   --amazon-white: #FFFFFF;
-  --amazon-bg: #EAEDED;
-  --amazon-light: #F3F3F3;
-  --amazon-border: #DDDDDD;
-  --amazon-border-light: #e7e7e7;
-  --amazon-text: #111111;
-  --amazon-text-secondary: #565959;
-  --amazon-text-muted: #999999;
-  --amazon-link: #007185;
-  --amazon-link-hover: #C7511F;
-  --amazon-success: #067D62;
-  --amazon-error: #B12704;
-  --amazon-warning: #DDE11D;
-  --amazon-star: #FEBD69;
-  --amazon-price: #B12704;
-  --amazon-price-large: #0F1111;
-  --amazon-card-shadow: 0 2px 5px rgba(0,0,0,0.05);
-  --amazon-card-shadow-hover: 0 4px 12px rgba(0,0,0,0.1);
-  --radius-sm: 4px;
-  --radius: 8px;
-  --radius-lg: 12px;
-  --transition: 0.2s ease;
-  --font: 'Amazon Ember', Arial, sans-serif;
+  --amazon-bg: #F4F9F5; /* Very subtle mint/fresh background */
+  --amazon-light: #E8F5E9; /* Light green tint for cards/hover */
+  --amazon-border: #C8E6C9; /* Soft green border */
+  --amazon-border-light: #E8F5E9;
+  --amazon-text: #1B2620; /* Very dark green/black for text */
+  --amazon-text-secondary: #4A5D52;
+  --amazon-text-muted: #8B9D92;
+  --amazon-link: #FF7043; /* Carrot orange links */
+  --amazon-link-hover: #E64A19;
+  --amazon-success: #388E3C;
+  --amazon-error: #D32F2F;
+  --amazon-warning: #FFA000;
+  --amazon-star: #FFB300;
+  --amazon-price: #2E7D32; /* Prices in trustworthy green */
+  --amazon-price-large: #1A3626;
+  --amazon-card-shadow: 0 4px 16px rgba(46, 125, 50, 0.08);
+  --amazon-card-shadow-hover: 0 8px 24px rgba(46, 125, 50, 0.15);
+  --radius-sm: 8px; /* Rounder corners for modern feel */
+  --radius: 12px;
+  --radius-lg: 20px;
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --font: 'Inter', 'Nunito', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -99,29 +99,30 @@ input::placeholder { color: var(--amazon-text-muted); }
 }
 
 .btn-primary {
-  background: linear-gradient(to bottom, #f7dfa5, #f0c14b);
-  color: #111;
-  border-color: #a88734 #9c7e31 #846a29;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset;
+  background: linear-gradient(135deg, #4CAF50, #388E3C);
+  color: #FFFFFF;
+  border-color: transparent;
+  box-shadow: 0 4px 10px rgba(76, 175, 80, 0.2);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(to bottom, #f5d78e, #eeb933);
-  text-decoration: none;
-  color: #111;
+  background: linear-gradient(135deg, #43A047, #2E7D32);
+  color: #FFFFFF;
+  box-shadow: 0 6px 14px rgba(76, 175, 80, 0.3);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
-  background: linear-gradient(to bottom, #f7f8fa, #e7e9ec);
-  color: #111;
-  border-color: #adb1b8 #a2a6ac #8d9096;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset;
+  background: #E8F5E9;
+  color: #2E7D32;
+  border-color: transparent;
+  font-weight: 700;
 }
 
 .btn-secondary:hover {
-  background: linear-gradient(to bottom, #e7e9ec, #ddd);
-  text-decoration: none;
-  color: #111;
+  background: #C8E6C9;
+  color: #1B5E20;
+  transform: translateY(-1px);
 }
 
 .btn-ghost {
@@ -207,7 +208,7 @@ input::placeholder { color: var(--amazon-text-muted); }
 }
 
 .text-gradient {
-  background: linear-gradient(135deg, #FF9900, #E68A00);
+  background: linear-gradient(135deg, #4CAF50, #2E7D32);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -406,11 +407,11 @@ input::placeholder { color: var(--amazon-text-muted); }
 
 /* Sub Header */
 .sub-header {
-  background: linear-gradient(135deg, #232F3E 0%, #37475A 100%);
+  background: #2E7D32;
   color: #fff;
   padding: 0;
   border-bottom: none;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 4px rgba(46,125,50,0.15);
 }
 
 .sub-header-inner {
@@ -451,11 +452,11 @@ input::placeholder { color: var(--amazon-text-muted); }
 }
 
 .sub-header-item.active {
-  background: linear-gradient(135deg, #FF9900, #FFB84D);
-  color: #111;
+  background: rgba(255,255,255,0.95);
+  color: #1B5E20;
   font-weight: 700;
   border-color: transparent;
-  box-shadow: 0 2px 8px rgba(255,153,0,0.3);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .sub-header-item .hamburger {
@@ -695,26 +696,30 @@ input::placeholder { color: var(--amazon-text-muted); }
 
 .product-card .add-to-cart-btn {
   margin-top: auto;
-  padding: 6px 12px;
-  background: linear-gradient(to bottom, #f7dfa5, #f0c14b);
-  border: 1px solid #a88734;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #4CAF50, #388E3C);
+  border: none;
   border-radius: 20px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: #111;
+  color: #fff;
   cursor: pointer;
   text-align: center;
   width: 100%;
+  box-shadow: 0 2px 6px rgba(76, 175, 80, 0.2);
+  transition: var(--transition);
 }
 
 .product-card .add-to-cart-btn:hover {
-  background: linear-gradient(to bottom, #f5d78e, #eeb933);
+  background: linear-gradient(135deg, #43A047, #2E7D32);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
 }
 
 /* Hero Banner */
 .hero-banner {
   position: relative;
-  background: linear-gradient(135deg, #ffffff, #f3f3f3);
+  background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
   color: var(--amazon-text);
   overflow: hidden;
   min-height: 280px;
@@ -760,8 +765,8 @@ input::placeholder { color: var(--amazon-text-muted); }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255,153,0,0.1);
-  border: 1px solid rgba(255,153,0,0.3);
+  background: rgba(76, 175, 80, 0.1);
+  border: 1px solid rgba(76, 175, 80, 0.3);
   padding: 6px 14px;
   border-radius: 20px;
   font-size: 13px;

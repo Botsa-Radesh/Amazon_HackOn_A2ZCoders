@@ -4,7 +4,7 @@ import { Providers } from '@/components/Providers';
 import { ClientLayout } from '@/components/ClientLayout';
 
 export const metadata: Metadata = {
-  title: 'VoiceCart — Voice-Powered Shopping by Amazon',
+  title: 'VoiceCart',
   description: 'Shop together with voice. The AI-powered group shopping platform for Amazon quick-commerce.',
 };
 
