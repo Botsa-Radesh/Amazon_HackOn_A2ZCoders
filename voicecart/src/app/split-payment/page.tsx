@@ -14,7 +14,7 @@ import { CartItem } from '@/types';
 
 export default function SplitPaymentPage() {
   const router = useRouter();
-  const { activeCart, clearCart } = useCart();
+  const { activeCart, clearCartAfterCheckout } = useCart();
   const items = activeCart?.items || [];
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((s, i) => s + i.product.price * i.quantity, 0);
@@ -74,7 +74,7 @@ export default function SplitPaymentPage() {
       });
     }
 
-    clearCart();
+    clearCartAfterCheckout();
 
     // Create split requests based on the cart's split mode
     const orderId = `ord-${Date.now()}`;

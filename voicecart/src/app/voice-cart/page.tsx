@@ -37,7 +37,7 @@ function VoiceCartPageInner() {
     carts, activeCartId, personalCartId, activeCart, commonCarts,
     setActiveCart, createPersonalCart, joinCommonCart,
     updateCartSplitMode, updateCartName,
-    addItem, removeItem, updateQuantity, toggleShared, clearCart, leaveCommonCart,
+    addItem, removeItem, updateQuantity, toggleShared, clearCart, clearCartAfterCheckout, leaveCommonCart,
     totalItems, totalPrice, getItemsByMember, getSharedItems,
   } = useCart();
   const { members, currentUserId, getMemberById } = useMembers();
@@ -788,14 +788,19 @@ function VoiceCartPageInner() {
               <div className="amazon-card animate-fadeIn" style={{ padding: 16, textAlign: 'center', borderColor: 'var(--amazon-success)', background: '#f0fff4' }}>
                 <span style={{ fontSize: 32 }}>✅</span>
                 <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--amazon-success)', marginTop: 8 }}>
-                  Order already placed!
+                  Order placed successfully!
                 </p>
                 <p style={{ fontSize: 12, color: 'var(--amazon-text-secondary)', marginTop: 4 }}>
-                  Check your Splits tab to see your share.
+                  Your cart is ready for a new order. All members are still in the cart.
                 </p>
-                <button className="btn btn-primary btn-sm mt-12" onClick={() => router.push('/splits')}>
-                  💰 View My Splits
-                </button>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => clearCartAfterCheckout()}>
+                    🛒 Start New Order
+                  </button>
+                  <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => router.push('/splits')}>
+                    💰 View Splits
+                  </button>
+                </div>
               </div>
             ) : (
               <button className="btn btn-primary btn-lg w-full mt-16"

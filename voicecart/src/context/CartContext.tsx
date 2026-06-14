@@ -39,6 +39,7 @@ interface CartContextType {
   toggleShared: (itemId: string) => void;
   toggleChecked: (itemId: string) => void;
   clearCart: () => void;
+  clearCartAfterCheckout: () => void;
   totalItems: number;
   totalPrice: number;
   getItemsByMember: (memberId: string) => CartItem[];
@@ -365,6 +366,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     updateActiveCartItems(() => []);
   }, [updateActiveCartItems]);
 
+  // Clears items and resets checkedOut, but keeps the cart and all members intact
+  const clearCartAfterCheckout = useCallback(() => {
+    if (!activeCartId) return;
+    setCarts(prev => {
+      const cart = prev[activeCartId];
+      if (!cart) return prev;
+      const updated = { ...cart, items: [], checkedOut: false, checkedOutBy: undefined, checkedOutAt: undefined };
+      // Sync the cleared (but alive) cart back to the API
+      syncCartToAPI(updated).catch(() => {});
+      return { ...prev, [activeCartId]: updated };
+    });
+  }, [activeCartId, setCarts]);
+
   const totalItems = useMemo(() => activeCart?.items.reduce((s, i) => s + i.quantity, 0) || 0, [activeCart]);
   const totalPrice = useMemo(() => activeCart?.items.reduce((s, i) => s + i.product.price * i.quantity, 0) || 0, [activeCart]);
 
@@ -441,7 +455,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setActiveCart, createPersonalCart, createCommonCart,
       joinCommonCart, joinCommonCartViaApi, leaveCommonCart,
       updateCartSplitMode, updateCartName,
-      addItem, removeItem, updateQuantity, toggleShared, toggleChecked, clearCart,
+      addItem, removeItem, updateQuantity, toggleShared, toggleChecked, clearCart, clearCartAfterCheckout,
       totalItems, totalPrice, getItemsByMember, getSharedItems,
       loadTemplate, savedTemplates, saveTemplate: saveTemplateFn, setSavedTemplates, deleteTemplate,
     }}>

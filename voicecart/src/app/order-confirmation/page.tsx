@@ -220,10 +220,16 @@ export default function OrderConfirmationPage() {
         </div>
       )}
 
-      <button className="btn btn-primary btn-lg w-full mt-20"
-        onClick={() => router.push('/dashboard')}>
-        📊 View Dashboard
-      </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 20 }}>
+        <button className="btn btn-primary btn-lg w-full"
+          onClick={() => router.push('/voice-cart')}>
+          🛒 Continue Shopping
+        </button>
+        <button className="btn btn-secondary w-full"
+          onClick={() => router.push('/dashboard')}>
+          📊 View Dashboard
+        </button>
+      </div>
     </div>
   );
 }

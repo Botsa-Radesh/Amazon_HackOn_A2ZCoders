@@ -42,6 +42,7 @@ function SearchResultsInner() {
   const [sortBy, setSortBy] = useState('relevance');
 
   const allResults = useMemo(() => searchProducts(q), [q]);
+  const isBrowseMode = !q.trim();
 
   const filtered = useMemo(() => {
     let list = activeCategory === 'All' ? allResults : allResults.filter(p => p.category === activeCategory);
@@ -78,18 +79,6 @@ function SearchResultsInner() {
     return counts;
   }, [allResults]);
 
-  if (!q.trim()) {
-    return (
-      <div style={{ maxWidth: 900, margin: '60px auto', textAlign: 'center', padding: '0 16px' }}>
-        <div style={{ fontSize: 48 }}>🔍</div>
-        <h2 style={{ marginTop: 12, color: 'var(--amazon-text)' }}>What are you looking for?</h2>
-        <p style={{ color: 'var(--amazon-text-secondary)', marginTop: 8 }}>
-          Use the search bar above to find products.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div style={{ maxWidth: 1500, margin: '0 auto', padding: '16px' }}>
       {/* Breadcrumb */}
@@ -101,7 +90,10 @@ function SearchResultsInner() {
           Home
         </span>
         {' › '}
-        <span>Search results for &quot;<strong style={{ color: 'var(--amazon-text)' }}>{q}</strong>&quot;</span>
+        {isBrowseMode
+          ? <span><strong style={{ color: 'var(--amazon-text)' }}>All Products</strong></span>
+          : <span>Search results for &quot;<strong style={{ color: 'var(--amazon-text)' }}>{q}</strong>&quot;</span>
+        }
       </div>
 
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
@@ -157,15 +149,19 @@ function SearchResultsInner() {
           }}>
             <div style={{ fontSize: 14, color: 'var(--amazon-text-secondary)' }}>
               {filtered.length > 0
-                ? <>
-                    <strong style={{ color: 'var(--amazon-text)' }}>{filtered.length}</strong>
-                    {' result'}
-                    {filtered.length !== 1 ? 's' : ''}
-                    {' for '}
-                    <strong>&quot;{q}&quot;</strong>
-                    {activeCategory !== 'All' && <> in <strong>{activeCategory}</strong></>}
-                  </>
-                : <>No results for <strong>&quot;{q}&quot;</strong></>
+                ? isBrowseMode
+                  ? <>
+                      <strong style={{ color: 'var(--amazon-text)' }}>{filtered.length}</strong>
+                      {' product'}{filtered.length !== 1 ? 's' : ''}{' available'}
+                      {activeCategory !== 'All' && <> in <strong>{activeCategory}</strong></>}
+                    </>
+                  : <>
+                      <strong style={{ color: 'var(--amazon-text)' }}>{filtered.length}</strong>
+                      {' result'}{filtered.length !== 1 ? 's' : ''}
+                      {' for '}<strong>&quot;{q}&quot;</strong>
+                      {activeCategory !== 'All' && <> in <strong>{activeCategory}</strong></>}
+                    </>
+                : <>{isBrowseMode ? 'No products found' : <>No results for <strong>&quot;{q}&quot;</strong></>}</>
               }
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
