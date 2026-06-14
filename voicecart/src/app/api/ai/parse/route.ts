@@ -18,7 +18,7 @@ Output: [{"name":"wheat flour","quantity":1},{"name":"sugar","quantity":1},{"nam
 
 const recipeSystemPrompt = `You are a recipe matcher. Given a user's request, return the EXACT name of the closest matching recipe from this list. Return ONLY the recipe name, nothing else. If no recipe matches, return "UNKNOWN".
 
-Available recipes: Butter Chicken, Paneer Butter Masala, Pasta Alfredo, Dal Tadka, Masala Chai, Chicken Biryani, Maggi Noodles, Egg Curry, Aloo Paratha`;
+Available recipes: Butter Chicken, Paneer Butter Masala, Pasta Alfredo, Dal Tadka, Masala Chai, Chicken Biryani, Maggi Noodles, Egg Curry, Aloo Paratha, Chole Bhature, Veg Fried Rice, Omelette, Rajma Chawal, Palak Paneer, Dosa, Poha, Pav Bhaji, Upma, Egg Fried Rice, Smoothie Bowl`;
 
 const cartAnalysisPrompt = `You are a smart AI shopping assistant. Analyze the given cart items and return a JSON object with these keys:
 - "summary": a one-line summary of what the cart contains (e.g. "Looks like you're prepping for a week of Indian cooking!")

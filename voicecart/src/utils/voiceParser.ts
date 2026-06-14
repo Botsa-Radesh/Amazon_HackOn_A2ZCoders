@@ -46,7 +46,7 @@ export async function parseVoiceCommand(text: string): Promise<VoiceCommandResul
   if (isRecipeIntent || directRecipeMatch || (/i (want|need)/i.test(lower) && recipes.some(r => r.name.toLowerCase().split(' ').some(kw => lower.includes(kw))))) {
     // If we have a direct match, use it immediately without calling AI
     if (directRecipeMatch) {
-      const match = lower.match(/(\d+)\s*(people|persons|servings|pax)/i) || lower.match(/for\s+(\d+)/);
+      const match = lower.match(/(\d+)\s*(people|persons?|servings?|pax|members?)/i) || lower.match(/for\s+(\d+)/i) || lower.match(/(\d+)\s*$/);
       const servings = match ? match[1] : String(directRecipeMatch.servings);
       return { intent: 'RECIPE_ADD', params: { recipeId: directRecipeMatch.id, servings }, originalText: text, response: `Adding all ingredients for ${directRecipeMatch.name} for ${servings} people to your cart!` };
     }
@@ -54,7 +54,7 @@ export async function parseVoiceCommand(text: string): Promise<VoiceCommandResul
     if (recipeName) {
       const recipe = recipes.find(r => r.name === recipeName);
       if (recipe) {
-        const match = lower.match(/(\d+)\s*(people|persons|servings|pax)/i) || lower.match(/for\s+(\d+)/);
+        const match = lower.match(/(\d+)\s*(people|persons?|servings?|pax|members?)/i) || lower.match(/for\s+(\d+)/i) || lower.match(/(\d+)\s*$/);
         const servings = match ? match[1] : String(recipe.servings);
         return { intent: 'RECIPE_ADD', params: { recipeId: recipe.id, servings }, originalText: text, response: `Adding all ingredients for ${recipeName} for ${servings} people to your cart!` };
       }

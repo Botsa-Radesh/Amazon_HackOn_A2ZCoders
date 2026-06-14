@@ -11,7 +11,7 @@ interface UseVoiceReturn {
   hasPermission: boolean;
 }
 
-export function useVoice(lang: string = 'en-IN'): UseVoiceReturn {
+export function useVoice(lang: string = 'en-US'): UseVoiceReturn {
   const [isSupported, setIsSupported] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -36,8 +36,9 @@ export function useVoice(lang: string = 'en-IN'): UseVoiceReturn {
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    // Support multiple languages: en-IN for English, hi-IN for Hindi
     recognition.lang = lang;
+    // Increase sensitivity — accept partial matches and reduce silence timeout
+    recognition.maxAlternatives = 3;
 
     recognition.onstart = () => {
       setIsListening(true);
