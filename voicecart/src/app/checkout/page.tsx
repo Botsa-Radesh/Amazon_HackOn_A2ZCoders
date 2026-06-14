@@ -31,22 +31,36 @@ export default function CheckoutPage() {
   const [alreadyPaid, setAlreadyPaid] = useState(false);
   const [paidByName, setPaidByName] = useState('');
   const [mySplitAmount, setMySplitAmount] = useState(0);
+  const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
+
+  const paymentMethods = [
+    { id: 'amazon_pay', name: 'Amazon Pay', icon: '💰', color: '#FF9900', coins: true, desc: 'Earn coins on every order' },
+    { id: 'phonepay', name: 'PhonePe', icon: '📱', color: '#5F259F', coins: false, desc: 'UPI payment' },
+    { id: 'paytm', name: 'Paytm', icon: '💙', color: '#00BAF2', coins: false, desc: 'Wallet / UPI' },
+    { id: 'gpay', name: 'Google Pay', icon: '🅶', color: '#4285F4', coins: false, desc: 'UPI payment' },
+    { id: 'card', name: 'Credit / Debit Card', icon: '💳', color: '#333', coins: false, desc: 'Visa, Mastercard, RuPay' },
+    { id: 'cod', name: 'Cash on Delivery', icon: '🏠', color: '#067D62', coins: false, desc: 'Pay when delivered' },
+  ];
 
   const cartMembers = useMemo(
     () => members.filter(m => activeCart?.memberIds.includes(m.id)),
     [members, activeCart?.memberIds]
   );
 
-  // On load, check if this cart was already checked out by someone else
+  // On load, check if this cart was already checked out by ANOTHER member
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => { setHydrated(true); }, []);
 
   useEffect(() => {
     if (!hydrated || !activeCart?.id) return;
+    // If user has items in cart, it's a new order — don't block
+    if (items.length > 0) return;
+    
     fetch(`/api/carts/${activeCart.id}`)
       .then(res => res.json())
       .then(data => {
-        if (data.cart?.checkedOut) {
+        // Only block if someone ELSE checked out (not the current user starting a new order)
+        if (data.cart?.checkedOut && data.cart?.checkedOutBy && data.cart.checkedOutBy !== currentUserId) {
           setAlreadyPaid(true);
           const payerName = getMemberById(data.cart.checkedOutBy)?.name || 'A member';
           setPaidByName(payerName);
@@ -69,7 +83,8 @@ export default function CheckoutPage() {
 
   const handleProcessPayment = async () => {
     if (!selectedSlot) { showToast('Please select a delivery slot!', 'warning'); return; }
-    if (isProcessing) return; // Prevent double-click
+    if (!selectedPayment) { showToast('Please select a payment method!', 'warning'); return; }
+    if (isProcessing) return;
     setIsProcessing(true);
 
     // ====== STEP 1: Check if already paid (race condition guard) ======
@@ -104,35 +119,48 @@ export default function CheckoutPage() {
     // ====== STEP 3: Process payment ======
     await new Promise(r => setTimeout(r, 1500));
 
-    const coinInfo = calculateCoinsEarned(totalPrice, 'amazon_pay', true, streak);
-    const totalCoins = coinInfo.earned;
+    // Only earn coins if paying with Amazon Pay
+    const isAmazonPay = selectedPayment === 'amazon_pay';
+    const coinInfo = calculateCoinsEarned(totalPrice, selectedPayment as any, isAmazonPay, streak);
+    const totalCoins = isAmazonPay ? coinInfo.earned : 0;
 
     const payerPayments = cartMembers.map(m => ({
       memberId: m.id,
       amount: m.id === currentUserId ? totalPrice : 0,
-      method: 'amazon_pay' as const,
+      method: selectedPayment as any,
       status: (m.id === currentUserId ? 'paid' : 'pending') as 'paid' | 'pending',
       coinsEarned: m.id === currentUserId ? totalCoins : 0,
     }));
-    addCoins(totalCoins, 'Order payment');
-    incrementStreak();
+    
+    if (isAmazonPay && totalCoins > 0) {
+      addCoins(totalCoins, `Order payment via Amazon Pay`);
+      incrementStreak();
+    }
 
     const slot = deliverySlots.find(s => s.id === selectedSlot);
     const slotTime = slot?.time || '7-9 AM';
     const cartSplitMode = activeCart?.splitMode || 'auto';
     placeOrder(items, totalPrice, cartSplitMode, payerPayments, slotTime, totalCoins);
 
-    // ====== STEP 4: Clear cart items in DynamoDB ======
+    // ====== STEP 4: Clear cart items in DynamoDB and reset checkedOut ======
     if (activeCart?.id) {
-      items.forEach(item => {
+      // Delete all items from DynamoDB
+      await Promise.all(items.map(item =>
         fetch(`/api/carts/${activeCart.id}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ itemId: item.id }),
-        }).catch(() => {});
-      });
+        }).catch(() => {})
+      ));
+      // Reset checkedOut flag so the cart is fresh for next order
+      await fetch(`/api/carts/${activeCart.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checkedOut: false, checkedOutBy: '', checkedOutAt: '' }),
+      }).catch(() => {});
     }
 
+    // Clear local cart state (items = [], checkedOut = false)
     clearCart();
 
     // ====== STEP 5: Create split requests for other members ======
@@ -402,14 +430,80 @@ export default function CheckoutPage() {
             />
           </div>
 
+          {/* Payment Method Selection */}
+          <div className="content-section" style={{ marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--amazon-text)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>💳</span> Select Payment Method
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {paymentMethods.map(method => {
+                const isSelected = selectedPayment === method.id;
+                return (
+                  <div key={method.id}
+                    onClick={() => setSelectedPayment(method.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '12px 16px', borderRadius: 10, cursor: 'pointer',
+                      border: isSelected ? `2px solid ${method.color}` : '1px solid var(--amazon-border-light)',
+                      background: isSelected ? `${method.color}08` : '#fff',
+                      transition: 'all 0.2s ease',
+                      boxShadow: isSelected ? `0 2px 8px ${method.color}20` : 'none',
+                    }}
+                  >
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 10,
+                      background: `${method.color}15`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 20, flexShrink: 0,
+                    }}>
+                      {method.icon}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--amazon-text)' }}>{method.name}</span>
+                        {method.coins && (
+                          <span style={{ fontSize: 10, background: '#fff8e0', color: '#9c7e31', padding: '2px 6px', borderRadius: 4, fontWeight: 600, border: '1px solid #f0c14b' }}>
+                            🪙 Earn Coins
+                          </span>
+                        )}
+                      </div>
+                      <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)', marginTop: 2 }}>{method.desc}</p>
+                    </div>
+                    <div style={{
+                      width: 20, height: 20, borderRadius: '50%',
+                      border: isSelected ? `6px solid ${method.color}` : '2px solid #ccc',
+                      transition: 'all 0.2s ease',
+                    }} />
+                  </div>
+                );
+              })}
+            </div>
+            {selectedPayment === 'amazon_pay' && (
+              <div style={{ marginTop: 10, padding: '8px 12px', background: '#fff8e0', borderRadius: 8, border: '1px solid #f0c14b', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 16 }}>🪙</span>
+                <span style={{ fontSize: 12, color: '#6d5a00' }}>
+                  You'll earn <strong>{Math.round(totalPrice * 0.05)}</strong> coins on this order!
+                </span>
+              </div>
+            )}
+            {selectedPayment && selectedPayment !== 'amazon_pay' && (
+              <div style={{ marginTop: 10, padding: '8px 12px', background: '#f5f5f5', borderRadius: 8, border: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 16 }}>ℹ️</span>
+                <span style={{ fontSize: 12, color: 'var(--amazon-text-muted)' }}>
+                  Switch to Amazon Pay to earn coins! No coins for {paymentMethods.find(m => m.id === selectedPayment)?.name}.
+                </span>
+              </div>
+            )}
+          </div>
+
           {/* Pay Button */}
           <button
             className="btn btn-primary btn-lg w-full"
             onClick={handleProcessPayment}
-            disabled={isProcessing || !selectedSlot}
+            disabled={isProcessing || !selectedSlot || !selectedPayment}
             style={{ padding: 16, fontSize: 16 }}
           >
-            {isProcessing ? '⏳ Processing Payment...' : `💳 Pay ₹${totalPrice} & Place Order`}
+            {isProcessing ? '⏳ Processing Payment...' : `💳 Pay ₹${totalPrice} via ${paymentMethods.find(m => m.id === selectedPayment)?.name || '...'}`}
           </button>
 
           <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)', textAlign: 'center', marginTop: 8 }}>

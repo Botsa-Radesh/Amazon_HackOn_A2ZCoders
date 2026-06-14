@@ -133,8 +133,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           fetchedCarts.forEach((c: any) => {
             const existing = merged[c.id];
             if (existing) {
-              // Keep local items if we have them (they're more up-to-date)
-              // Only update metadata from API (memberIds, checkedOut, etc.)
+              // For common carts: merge intelligently
+              // For personal carts: keep local items if we have them
+              let mergedItems: CartItem[];
+              if (c.type === 'common' && c.items && c.items.length > 0) {
+                // Smart merge: keep my local items, take others from remote
+                const remoteItems: CartItem[] = c.items || [];
+                const myLocalItems = existing.items.filter((i: CartItem) => i.addedBy === uid);
+                const othersRemoteItems = remoteItems.filter((ri: CartItem) => ri.addedBy !== uid);
+                const myRemoteItems = remoteItems.filter((ri: CartItem) => ri.addedBy === uid);
+                const myLocalIds = new Set(myLocalItems.map((i: CartItem) => i.id));
+                const myMissingFromRemote = myRemoteItems.filter((ri: CartItem) => !myLocalIds.has(ri.id));
+                mergedItems = [...myLocalItems, ...myMissingFromRemote, ...othersRemoteItems];
+              } else {
+                mergedItems = existing.items.length > 0 ? existing.items : (c.items || []);
+              }
+              
               merged[c.id] = {
                 ...existing,
                 memberIds: c.memberIds || existing.memberIds,
@@ -143,7 +157,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                 checkedOutAt: c.checkedOutAt,
                 name: c.name || existing.name,
                 splitMode: c.splitMode || existing.splitMode,
-                items: existing.items.length > 0 ? existing.items : (c.items || []),
+                items: mergedItems,
               };
             } else {
               // New cart from API that we don't have locally
@@ -218,10 +232,40 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               const remoteItems: CartItem[] = c.items || [];
               
               if (existing) {
-                // Merge items: keep all local items + add any remote items not already in local
-                const localItemIds = new Set(existing.items.map((i: CartItem) => i.id));
-                const newRemoteItems = remoteItems.filter((ri: CartItem) => !localItemIds.has(ri.id));
-                const mergedItems = [...existing.items, ...newRemoteItems];
+                // For common carts: use remote as source of truth for items from OTHER members
+                // For my own items: keep local version but update quantity if remote is higher
+                let mergedItems: CartItem[];
+                if (existing.type === 'common') {
+                  // If remote has 0 items, it means someone paid and cleared the cart — reset locally too
+                  if (remoteItems.length === 0 && existing.items.length > 0) {
+                    mergedItems = [];
+                  } else {
+                    // Keep my local items (added by me) — but update quantity from remote if changed
+                    const myLocalItems = existing.items.filter((i: CartItem) => i.addedBy === uid);
+                    // Get all items from remote that were added by OTHER members (always use remote as truth)
+                    const othersRemoteItems = remoteItems.filter((ri: CartItem) => ri.addedBy !== uid);
+                    // Also include my items from remote that I might not have locally (e.g. after page reload)
+                    const myRemoteItems = remoteItems.filter((ri: CartItem) => ri.addedBy === uid);
+                    const myLocalIds = new Set(myLocalItems.map((i: CartItem) => i.id));
+                    const myMissingFromRemote = myRemoteItems.filter((ri: CartItem) => !myLocalIds.has(ri.id));
+                    // Update my local items' quantities from remote (handles multi-device case)
+                    const myRemoteMap = new Map(myRemoteItems.map((ri: CartItem) => [ri.id, ri]));
+                    const myUpdatedLocalItems = myLocalItems.map((li: CartItem) => {
+                      const remote = myRemoteMap.get(li.id);
+                      if (remote && remote.quantity !== li.quantity) {
+                        return { ...li, quantity: Math.max(li.quantity, remote.quantity) };
+                      }
+                      return li;
+                    });
+                    
+                    mergedItems = [...myUpdatedLocalItems, ...myMissingFromRemote, ...othersRemoteItems];
+                  }
+                } else {
+                  // Personal cart: keep local items as source of truth
+                  const localItemIds = new Set(existing.items.map((i: CartItem) => i.id));
+                  const newRemoteItems = remoteItems.filter((ri: CartItem) => !localItemIds.has(ri.id));
+                  mergedItems = [...existing.items, ...newRemoteItems];
+                }
                 
                 next[c.id] = {
                   ...existing,
@@ -439,8 +483,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [updateActiveCartItems]);
 
   const clearCart = useCallback(() => {
-    updateActiveCartItems(() => []);
-  }, [updateActiveCartItems]);
+    if (!activeCartId) return;
+    setCarts(prev => {
+      const cart = prev[activeCartId];
+      if (!cart) return prev;
+      return { ...prev, [activeCartId]: { ...cart, items: [], checkedOut: false, checkedOutBy: undefined, checkedOutAt: undefined } };
+    });
+  }, [activeCartId, setCarts]);
 
   // Clears items and resets checkedOut, but keeps the cart and all members intact
   const clearCartAfterCheckout = useCallback(() => {
@@ -451,6 +500,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const updated = { ...cart, items: [], checkedOut: false, checkedOutBy: undefined, checkedOutAt: undefined };
       // Sync the cleared (but alive) cart back to the API
       syncCartToAPI(updated).catch(() => {});
+      // Also explicitly reset checkedOut in DynamoDB via PATCH
+      fetch(`/api/carts/${activeCartId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checkedOut: false, checkedOutBy: '', checkedOutAt: '' }),
+      }).catch(() => {});
       return { ...prev, [activeCartId]: updated };
     });
   }, [activeCartId, setCarts]);

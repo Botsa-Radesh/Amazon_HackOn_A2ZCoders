@@ -91,7 +91,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
-    const itemId = `ci-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const itemId = item.id || `ci-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const cartItem = {
       ...Keys.cartItem(id, itemId),
       id: itemId,
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       quantity: item.quantity || 1,
       addedBy: item.addedBy || 'unknown',
       isShared: item.isShared || false,
-      checked: false,
+      checked: item.checked || false,
     };
 
     await client.send(new PutCommand({ TableName: TABLE_NAME, Item: cartItem }));

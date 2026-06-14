@@ -943,7 +943,7 @@ function VoiceCartPageInner() {
             </div>
 
             {/* Checkout Button */}
-            {activeCart?.checkedOut ? (
+            {activeCart?.checkedOut && activeCart.items.length === 0 ? (
               <div className="amazon-card animate-fadeIn" style={{ padding: 16, textAlign: 'center', borderColor: 'var(--amazon-success)', background: '#f0fff4' }}>
                 <span style={{ fontSize: 32 }}>✅</span>
                 <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--amazon-success)', marginTop: 8 }}>
