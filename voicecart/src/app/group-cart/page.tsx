@@ -13,7 +13,7 @@ export default function GroupCartPage() {
 
   const handleOpenCart = (cartId: string) => {
     setActiveCart(cartId);
-    router.push('/voice-cart');
+    router.push('/group-cart/shop');
   };
 
   return (

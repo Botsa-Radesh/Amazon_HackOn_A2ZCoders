@@ -6,7 +6,7 @@ import { useCart } from '@/context/CartContext';
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { totalItems, commonCarts, personalCartId, carts } = useCart();
+  const { commonCarts, personalCartId, carts } = useCart();
 
   const personalCart = personalCartId ? carts[personalCartId] : null;
   const personalItems = personalCart?.items.length || 0;
@@ -14,7 +14,7 @@ export function BottomNav() {
 
   const navItems = [
     { href: '/', label: 'Home', icon: '🏠' },
-    { href: '/my-cart', label: 'My Cart', icon: '🛒', badge: personalItems },
+    { href: '/personal-cart', label: 'My Cart', icon: '🛒', badge: personalItems },
     { href: '/group-cart', label: 'Group', icon: '👥', badge: commonCarts.length > 0 ? commonCartItems : undefined },
     { href: '/splits', label: 'Splits', icon: '💰' },
     { href: '/dashboard', label: 'Dashboard', icon: '📊' },

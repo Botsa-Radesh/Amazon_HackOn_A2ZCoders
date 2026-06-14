@@ -307,7 +307,7 @@ function VoiceCartPageInner() {
         break;
       }
       case 'CHECKOUT': {
-        router.push('/split-payment');
+        router.push('/checkout');
         break;
       }
       case 'REORDER': {
@@ -424,15 +424,32 @@ function VoiceCartPageInner() {
     return acc;
   }, {} as Record<string, CartItem[]>);
 
-  const isPersonalActive = activeCartId === personalCartId;
-  const isCommonActive = !isPersonalActive && commonCarts.some(c => c.id === activeCartId);
+  // Determine active tab from URL param (?tab=group) so it persists on refresh
+  const tabParam = searchParams.get('tab');
+  const isGroupTab = tabParam === 'group';
+  const isPersonalActive = !isGroupTab;
+  const isCommonActive = isGroupTab;
+
+  // On mount, sync activeCartId with the URL tab
+  useEffect(() => {
+    if (isGroupTab) {
+      const alreadyCommon = commonCarts.some(c => c.id === activeCartId);
+      if (!alreadyCommon && commonCarts.length > 0) {
+        setActiveCart(commonCarts[0].id);
+      }
+    } else {
+      if (personalCartId && activeCartId !== personalCartId) {
+        setActiveCart(personalCartId);
+      }
+    }
+  }, [isGroupTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="page-content" style={{ paddingTop: 16, paddingBottom: 80 }}>
-      {/* Cart Type Tabs */}
+      {/* Cart Type Tabs — link to different URLs */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--amazon-border)' }}>
         <button
-          onClick={() => { if (personalCartId) setActiveCart(personalCartId); }}
+          onClick={() => { if (personalCartId) setActiveCart(personalCartId); router.push('/voice-cart'); }}
           style={{
             flex: 1, padding: '12px 16px', border: 'none', cursor: 'pointer',
             background: isPersonalActive ? '#fff' : '#f5f5f5',
@@ -455,9 +472,8 @@ function VoiceCartPageInner() {
           onClick={() => {
             if (commonCarts.length > 0) {
               setActiveCart(commonCarts[0].id);
-            } else {
-              router.push('/common-cart');
             }
+            router.push('/voice-cart?tab=group');
           }}
           style={{
             flex: 1, padding: '12px 16px', border: 'none', cursor: 'pointer',
@@ -946,7 +962,7 @@ function VoiceCartPageInner() {
               </div>
             ) : (
               <button className="btn btn-primary btn-lg w-full mt-16"
-                onClick={() => router.push('/split-payment')}>
+                onClick={() => router.push('/checkout')}>
                 🛒 Proceed to Checkout
               </button>
             )}

@@ -5,11 +5,12 @@ import { usePathname } from 'next/navigation';
 
 const categoryLinks = [
   { href: '/', label: 'All' },
-  { href: '/voice-cart', label: 'Voice Cart', emoji: '🎙️' },
+  { href: '/personal-cart', label: 'My Cart', emoji: '🛒' },
+  { href: '/group-cart', label: 'Group Cart', emoji: '👥' },
   { href: '/common-cart', label: 'Common Cart', emoji: '🏠' },
   { href: '/dashboard', label: 'Dashboard', emoji: '📊' },
-  { href: '/members', label: 'Members', emoji: '👥' },
-  { href: '/split-payment', label: 'Split & Pay', emoji: '💳' },
+  { href: '/members', label: 'Members', emoji: '👤' },
+  { href: '/checkout', label: 'Checkout', emoji: '💳' },
   { href: '/splits', label: 'My Splits', emoji: '💰' },
 ];
 

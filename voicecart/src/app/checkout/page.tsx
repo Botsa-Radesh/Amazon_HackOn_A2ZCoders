@@ -10,9 +10,8 @@ import { CoinsAnimation } from '@/components/CoinsAnimation';
 import { Confetti } from '@/components/Confetti';
 import { DeliverySlotVoting } from '@/components/DeliverySlotVoting';
 import { calculateCoinsEarned } from '@/utils/coinsCalculator';
-import { CartItem } from '@/types';
 
-export default function SplitPaymentPage() {
+export default function CheckoutPage() {
   const router = useRouter();
   const { activeCart, clearCartAfterCheckout, isHydrated } = useCart();
   const items = activeCart?.items || [];
@@ -44,7 +43,6 @@ export default function SplitPaymentPage() {
     if (!selectedSlot) { showToast('Please select a delivery slot!', 'warning'); return; }
     setIsProcessing(true);
 
-    // #10 Fix: Check if cart was already checked out before processing
     if (activeCart?.id) {
       try {
         const checkRes = await fetch(`/api/carts/${activeCart.id}`);
@@ -78,7 +76,6 @@ export default function SplitPaymentPage() {
     const cartSplitMode = activeCart?.splitMode || 'auto';
     placeOrder(items, totalPrice, cartSplitMode, payerPayments, slotTime, totalCoins);
 
-    // Delete all items from the cart in DynamoDB so it resets to 0 but keeps the cart alive
     if (activeCart?.id) {
       items.forEach(item => {
         fetch(`/api/carts/${activeCart.id}`, {
@@ -91,7 +88,6 @@ export default function SplitPaymentPage() {
 
     clearCartAfterCheckout();
 
-    // Create split requests based on the cart's split mode
     const orderId = `ord-${Date.now()}`;
     const nonPayerMembers = cartMembers.filter(m => m.id !== currentUserId);
 
@@ -101,11 +97,9 @@ export default function SplitPaymentPage() {
         let memberItems: { productId: string; name: string; quantity: number; price: number }[] = [];
 
         if (cartSplitMode === 'equal') {
-          // Equal: total divided by all members
           amount = Math.round(totalPrice / cartMembers.length);
           memberItems = items.map(i => ({ productId: i.product.id, name: i.product.name, quantity: i.quantity, price: i.product.price }));
         } else {
-          // Auto: each person pays for items they added + share of shared items
           const personalItems = items.filter(i => i.addedBy === m.id && !i.isShared);
           const personalTotal = personalItems.reduce((s, i) => s + i.product.price * i.quantity, 0);
           const sharedTotal = items.filter(i => i.isShared).reduce((s, i) => s + i.product.price * i.quantity, 0);
@@ -145,31 +139,30 @@ export default function SplitPaymentPage() {
     }, 1500);
   };
 
+  // Loading state — wait for cart data
   if (!isHydrated) {
     return (
       <div className="page-content" style={{ paddingTop: 40, textAlign: 'center' }}>
         <span style={{ fontSize: 48 }}>⏳</span>
-        <p style={{ fontSize: 14, color: 'var(--amazon-text-secondary)', marginTop: 12 }}>Loading cart...</p>
+        <p style={{ fontSize: 14, color: 'var(--amazon-text-secondary)', marginTop: 12 }}>Loading checkout...</p>
       </div>
     );
   }
 
+  // Empty cart
   if (items.length === 0 && !isComplete) {
     return (
       <div className="page-content" style={{ paddingTop: 40, textAlign: 'center' }}>
         <span style={{ fontSize: 64 }}>🛒</span>
         <p style={{ fontSize: 16, color: 'var(--amazon-text-secondary)', margin: '16px 0' }}>
-          Your cart is empty. Add items first!
+          No items to checkout. Add items to your cart first!
         </p>
-        <button className="btn btn-primary" onClick={() => router.push('/voice-cart')}>
-          Start Shopping
+        <button className="btn btn-primary" onClick={() => router.push('/personal-cart')}>
+          🛒 Go to My Cart
         </button>
       </div>
     );
   }
-
-  const payerMember = getMemberById(currentUserId);
-  const selectedSlotData = deliverySlots.find(s => s.id === selectedSlot);
 
   return (
     <div className="page-content" style={{ paddingTop: 16, paddingBottom: 80 }}>
@@ -177,7 +170,7 @@ export default function SplitPaymentPage() {
       <Confetti active={showConfetti} />
 
       <div className="page-header" style={{ margin: '-16px -16px 16px', borderRadius: 0 }}>
-        <button className="back-btn" onClick={() => router.push('/voice-cart')}>←</button>
+        <button className="back-btn" onClick={() => router.back()}>←</button>
         <h1>Checkout</h1>
       </div>
 
@@ -190,23 +183,24 @@ export default function SplitPaymentPage() {
           </div>
           <h2 style={{ fontSize: 22, fontWeight: 700, margin: '16px 0 8px', color: 'var(--amazon-text)' }}>Order Placed! 🎉</h2>
           <p style={{ fontSize: 14, color: 'var(--amazon-text-secondary)' }}>
-            You paid ₹{totalPrice}. You can split the bill later from the order confirmation page.
+            You paid ₹{totalPrice}. Redirecting to confirmation...
           </p>
         </div>
       ) : (
         <>
+          {/* Info banner */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, padding: '12px 16px', background: '#fef4e8', borderRadius: 8, border: '1px solid #f0c14b', fontSize: 12, color: 'var(--amazon-text)', alignItems: 'center' }}>
             <span style={{ fontSize: 18 }}>🗳️</span>
-            <span>Vote for a delivery slot and pay the full bill. You can split the bill with your group later.</span>
+            <span>Select a delivery slot and pay. You can split the bill with your group later.</span>
           </div>
 
-          {/* Cart Summary — Full itemized breakdown by member */}
+          {/* ===== ITEMS READY TO CHECKOUT ===== */}
           <div className="content-section" style={{ marginBottom: 16 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--amazon-text)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>🛒</span> Order Items ({totalItems} items)
+              <span>🛒</span> Items Ready to Checkout ({totalItems})
             </h3>
 
-            {/* Shared Items Section */}
+            {/* Shared Items */}
             {items.filter(i => i.isShared).length > 0 && (
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 10px', background: '#f0f7ff', borderRadius: 8, border: '1px solid #d0e3f7' }}>
@@ -224,16 +218,12 @@ export default function SplitPaymentPage() {
                         {item.product.emoji}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--amazon-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {item.product.name}
-                        </p>
+                        <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--amazon-text)' }}>{item.product.name}</p>
                         <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)' }}>
                           {item.quantity} × ₹{item.product.price} · Added by {addedByMember?.name || 'Unknown'}
                         </p>
                       </div>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-price)', flexShrink: 0 }}>
-                        ₹{item.product.price * item.quantity}
-                      </span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-price)' }}>₹{item.product.price * item.quantity}</span>
                     </div>
                   );
                 })}
@@ -266,16 +256,12 @@ export default function SplitPaymentPage() {
                           {item.product.emoji}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--amazon-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {item.product.name}
-                          </p>
+                          <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--amazon-text)' }}>{item.product.name}</p>
                           <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)' }}>
                             {item.quantity} × ₹{item.product.price} · {item.product.brand}
                           </p>
                         </div>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-price)', flexShrink: 0 }}>
-                          ₹{item.product.price * item.quantity}
-                        </span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-price)' }}>₹{item.product.price * item.quantity}</span>
                       </div>
                     ))}
                   </div>
@@ -295,123 +281,25 @@ export default function SplitPaymentPage() {
             </div>
           </div>
 
-          {/* Expected Split */}
-          {(() => {
-            const cartSplitMode = activeCart?.splitMode || 'auto';
-            const splitEntries: { id: string; name: string; avatar: string; total: number; count: number; isPayer: boolean }[] = [];
-            const seen = new Set<string>();
-            for (const item of items) {
-              if (seen.has(item.addedBy)) continue;
-              seen.add(item.addedBy);
-              const member = getMemberById(item.addedBy);
-              const memberItems = items.filter(i => i.addedBy === item.addedBy && !i.isShared);
-              const total = memberItems.reduce((s, i) => s + i.product.price * i.quantity, 0);
-              splitEntries.push({
-                id: item.addedBy,
-                name: member?.name || 'Guest',
-                avatar: member?.avatar || '👤',
-                total,
-                count: memberItems.length,
-                isPayer: item.addedBy === currentUserId,
-              });
-            }
+          {/* Delivery Slot */}
+          <div className="content-section" style={{ marginBottom: 16 }}>
+            <h3 className="section-title">🚚 Select Delivery Slot</h3>
+            <DeliverySlotVoting
+              slots={deliverySlots}
+              onSelect={handleSlotSelect}
+              selectedSlotId={selectedSlot}
+            />
+          </div>
 
-            const modeTitle = cartSplitMode === 'family' ? 'Family' : cartSplitMode === 'equal' ? 'Equal' : cartSplitMode === 'custom' ? 'Custom' : 'Auto';
-            const modeDesc = cartSplitMode === 'family'
-              ? 'One person pays everything. No splits needed.'
-              : cartSplitMode === 'equal'
-              ? `Total ÷ ${cartMembers.length} members = ₹${Math.round(totalPrice / Math.max(cartMembers.length, 1))} each.`
-              : 'Each person pays for the items they added. Payer pays full bill upfront, others reimburse later.';
-
-            return (
-              <div className="content-section" style={{ marginBottom: 16, borderColor: cartSplitMode === 'family' ? '#b7e4c7' : '#be95ff' }}>
-                <h3 className="section-title">📊 Expected Split ({modeTitle})</h3>
-                <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)', marginBottom: 8 }}>
-                  {modeDesc}
-                </p>
-                {splitEntries.map(entry => {
-                  let share = 0;
-                  if (cartSplitMode === 'family') {
-                    share = entry.isPayer ? totalPrice : 0;
-                  } else if (cartSplitMode === 'equal') {
-                    share = Math.round(totalPrice / Math.max(cartMembers.length, 1));
-                  } else {
-                    const sharedTotal = items.filter(i => i.isShared).reduce((s, i) => s + i.product.price * i.quantity, 0);
-                    const sharedShare = Math.round(sharedTotal / Math.max(cartMembers.length, 1));
-                    
-                    if (entry.isPayer) {
-                      const nonPayerTotal = splitEntries.filter(e => !e.isPayer).reduce((s, e) => s + e.total + sharedShare, 0);
-                      share = totalPrice - nonPayerTotal;
-                    } else {
-                      share = entry.total + sharedShare;
-                    }
-                  }
-                  return (
-                    <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--amazon-border-light)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 18 }}>{entry.avatar}</span>
-                        <div>
-                          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-text)' }}>
-                            {entry.name}
-                            {entry.isPayer && (
-                              <span style={{ fontSize: 10, color: 'var(--amazon-orange)', marginLeft: 6, fontWeight: 700 }}>Payer</span>
-                            )}
-                          </p>
-                          <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)' }}>
-                            {cartSplitMode === 'family'
-                              ? (entry.isPayer ? 'Pays everything' : 'No payment needed')
-                              : `${entry.count} item${entry.count !== 1 ? 's' : ''} added${entry.isPayer ? ' · pays full bill' : ''}`}
-                          </p>
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <p style={{ fontSize: 16, fontWeight: 700, color: share > 0 ? 'var(--amazon-price)' : 'var(--amazon-success)' }}>
-                          {share > 0 ? `₹${share}` : '₹0'}
-                        </p>
-                        {!entry.isPayer && cartSplitMode !== 'family' && share > 0 && (
-                          <p style={{ fontSize: 10, color: 'var(--amazon-text-muted)' }}>owes {payerMember?.name}</p>
-                        )}
-                        {!entry.isPayer && cartSplitMode === 'family' && (
-                          <p style={{ fontSize: 10, color: 'var(--amazon-success)' }}>✓ Covered</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
-
-          {/* Delivery Slot Voting */}
-          <DeliverySlotVoting selectedSlot={selectedSlot} onSelectSlot={handleSlotSelect} />
-
-          {/* Confirmation + Pay */}
-          {slotConfirmed && selectedSlotData && (
-            <div className="amazon-card animate-slideUp" style={{
-              marginTop: 12, borderColor: '#f0c14b', background: '#fffbf0',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 32 }}>🗳️</span>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--amazon-text)' }}>
-                    {payerMember?.avatar} {payerMember?.name} — <strong>{selectedSlotData.time}</strong>
-                    <span style={{ fontSize: 10, color: 'var(--amazon-orange)', marginLeft: 6, fontWeight: 700 }}>Payer</span>
-                  </p>
-                  <p style={{ fontSize: 12, color: 'var(--amazon-text-secondary)', marginTop: 2 }}>
-                    You&apos;ll pay the full bill (₹{totalPrice}) upfront.
-                  </p>
-                </div>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleProcessPayment}
-                  disabled={isProcessing}
-                  style={{ whiteSpace: 'nowrap' }}
-                >
-                  {isProcessing ? '⏳ Paying...' : `Pay ₹${totalPrice}`}
-                </button>
-              </div>
-            </div>
-          )}
+          {/* Pay Button */}
+          <button
+            className="btn btn-primary btn-lg w-full"
+            onClick={handleProcessPayment}
+            disabled={isProcessing || !selectedSlot}
+            style={{ padding: 16, fontSize: 16 }}
+          >
+            {isProcessing ? '⏳ Processing...' : `💳 Pay ₹${totalPrice} & Place Order`}
+          </button>
         </>
       )}
     </div>

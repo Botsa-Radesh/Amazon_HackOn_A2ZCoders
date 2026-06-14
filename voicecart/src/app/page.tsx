@@ -85,7 +85,7 @@ export default function HomePage() {
           </h1>
           <p>Voice-powered group shopping for your Amazon quick-commerce needs. Just speak, and we&apos;ll handle the rest.</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Link href="/my-cart" className="btn btn-primary btn-lg" style={{ textDecoration: 'none' }}>
+            <Link href="/personal-cart" className="btn btn-primary btn-lg" style={{ textDecoration: 'none' }}>
               🛒 My Cart
             </Link>
             <Link href="/group-cart" className="btn btn-secondary btn-lg" style={{ textDecoration: 'none' }}>
@@ -169,7 +169,7 @@ export default function HomePage() {
 
         {/* Quick Actions */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16, marginBottom: 24 }}>
-          <Link href="/my-cart" style={{ textDecoration: 'none' }}>
+          <Link href="/personal-cart" style={{ textDecoration: 'none' }}>
             <div className="amazon-card" style={{ textAlign: 'center', padding: 24, cursor: 'pointer' }}>
               <span style={{ fontSize: 40 }}>🛒</span>
               <h3 style={{ fontSize: 16, fontWeight: 700, margin: '12px 0 4px', color: 'var(--amazon-text)' }}>My Cart</h3>

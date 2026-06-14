@@ -25,6 +25,7 @@ interface CartContextType {
   personalCartId: string | null;
   activeCart: Cart | null;
   commonCarts: Cart[];
+  isHydrated: boolean;
   setActiveCart: (cartId: string) => void;
   createPersonalCart: (userId: string, userName: string) => Cart;
   createCommonCart: (name: string, creatorId: string, creatorName: string, splitMode: SplitMode, memberIds?: string[]) => Cart;
@@ -75,7 +76,43 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [activeCartId, setActiveCartId] = useState<string | null>(null);
   const [personalCartId, setPersonalCartId] = useState<string | null>(null);
   const [savedTemplates, setSavedTemplates] = useState<Template[]>(defaultTemplates);
+  const [isHydrated, setIsHydrated] = useState(false);
   const { userId } = useAuth();
+
+  // Hydrate from localStorage on client mount
+  useEffect(() => {
+    try {
+      const storedCarts = localStorage.getItem('voicecart-carts');
+      if (storedCarts) setCarts(JSON.parse(storedCarts));
+      const storedActiveId = localStorage.getItem('voicecart-activeCartId');
+      if (storedActiveId) setActiveCartId(storedActiveId);
+      const storedPersonalId = localStorage.getItem('voicecart-personalCartId');
+      if (storedPersonalId) setPersonalCartId(storedPersonalId);
+    } catch {}
+    setIsHydrated(true);
+  }, []);
+
+  // Persist cart state to localStorage
+  useEffect(() => {
+    if (!isHydrated) return;
+    try { localStorage.setItem('voicecart-carts', JSON.stringify(carts)); } catch {}
+  }, [carts, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    try {
+      if (activeCartId) localStorage.setItem('voicecart-activeCartId', activeCartId);
+      else localStorage.removeItem('voicecart-activeCartId');
+    } catch {}
+  }, [activeCartId, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    try {
+      if (personalCartId) localStorage.setItem('voicecart-personalCartId', personalCartId);
+      else localStorage.removeItem('voicecart-personalCartId');
+    } catch {}
+  }, [personalCartId, isHydrated]);
 
   // Fetch carts from API first, then create personal cart only if none exists in DB
   const lastFetchedUid = useRef<string | null>(null);
@@ -91,26 +128,46 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     
     fetchCartsFromAPI(uid).then(fetchedCarts => {
       if (fetchedCarts && fetchedCarts.length > 0) {
-        const cartMap: Record<string, Cart> = {};
-        fetchedCarts.forEach((c: any) => {
-          cartMap[c.id] = { ...c, items: c.items || [], isActive: true };
+        setCarts(prev => {
+          const merged: Record<string, Cart> = { ...prev };
+          fetchedCarts.forEach((c: any) => {
+            const existing = merged[c.id];
+            if (existing) {
+              // Keep local items if we have them (they're more up-to-date)
+              // Only update metadata from API (memberIds, checkedOut, etc.)
+              merged[c.id] = {
+                ...existing,
+                memberIds: c.memberIds || existing.memberIds,
+                checkedOut: c.checkedOut,
+                checkedOutBy: c.checkedOutBy,
+                checkedOutAt: c.checkedOutAt,
+                name: c.name || existing.name,
+                splitMode: c.splitMode || existing.splitMode,
+                items: existing.items.length > 0 ? existing.items : (c.items || []),
+              };
+            } else {
+              // New cart from API that we don't have locally
+              merged[c.id] = { ...c, items: c.items || [], isActive: true };
+            }
+          });
+          return merged;
         });
-        setCarts(cartMap);
 
         // Find existing personal cart from DB
         const personal = fetchedCarts.find((c: any) => c.type === 'personal' && c.memberIds?.includes(uid));
         if (personal) {
-          setPersonalCartId(personal.id);
-          setActiveCartId(personal.id);
+          setPersonalCartId(prev => prev || personal.id);
+          // Only set active cart if none was restored from localStorage
+          setActiveCartId(prev => prev || personal.id);
         } else {
           // No personal cart in DB, create one
           createLocalPersonalCart(uid);
         }
 
-        // Also set active to common cart if one exists
+        // Also set active to common cart if one exists and nothing else is active
         const common = fetchedCarts.find((c: any) => c.type === 'common');
         if (common && !personal) {
-          setActiveCartId(common.id);
+          setActiveCartId(prev => prev || common.id);
         }
       } else {
         // No carts in DB at all, create a personal cart
@@ -464,7 +521,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <CartContext.Provider value={{
-      carts, activeCartId, personalCartId, activeCart, commonCarts,
+      carts, activeCartId, personalCartId, activeCart, commonCarts, isHydrated,
       setActiveCart, createPersonalCart, createCommonCart,
       joinCommonCart, joinCommonCartViaApi, leaveCommonCart,
       updateCartSplitMode, updateCartName,
