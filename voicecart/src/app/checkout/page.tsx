@@ -13,7 +13,7 @@ import { calculateCoinsEarned } from '@/utils/coinsCalculator';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { activeCart, clearCartAfterCheckout, isHydrated } = useCart();
+  const { activeCart, clearCart } = useCart();
   const items = activeCart?.items || [];
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((s, i) => s + i.product.price * i.quantity, 0);
@@ -37,9 +37,11 @@ export default function CheckoutPage() {
   );
 
   // On load, check if this cart was already checked out by someone else
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { setHydrated(true); }, []);
+
   useEffect(() => {
-    if (!isHydrated || !activeCart?.id) return;
-    // Check the DynamoDB cart record for checkedOut status
+    if (!hydrated || !activeCart?.id) return;
     fetch(`/api/carts/${activeCart.id}`)
       .then(res => res.json())
       .then(data => {
@@ -47,14 +49,12 @@ export default function CheckoutPage() {
           setAlreadyPaid(true);
           const payerName = getMemberById(data.cart.checkedOutBy)?.name || 'A member';
           setPaidByName(payerName);
-          // Calculate this user's split
           const splitMode = activeCart.splitMode || 'auto';
           if (splitMode === 'equal') {
             setMySplitAmount(Math.round(totalPrice / Math.max(cartMembers.length, 1)));
           } else if (splitMode === 'family') {
             setMySplitAmount(0);
           } else {
-            // auto: personal items + share of shared
             const myItems = items.filter(i => i.addedBy === currentUserId && !i.isShared);
             const myTotal = myItems.reduce((s, i) => s + i.product.price * i.quantity, 0);
             const sharedTotal = items.filter(i => i.isShared).reduce((s, i) => s + i.product.price * i.quantity, 0);
@@ -64,7 +64,7 @@ export default function CheckoutPage() {
         }
       })
       .catch(() => {});
-  }, [isHydrated, activeCart?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hydrated, activeCart?.id, activeCart?.splitMode, totalPrice, cartMembers.length, currentUserId, items, getMemberById]);
 
   const handleProcessPayment = async () => {
     if (!selectedSlot) { showToast('Please select a delivery slot!', 'warning'); return; }
@@ -132,7 +132,7 @@ export default function CheckoutPage() {
       });
     }
 
-    clearCartAfterCheckout();
+    clearCart();
 
     // ====== STEP 5: Create split requests for other members ======
     const orderId = `ord-${Date.now()}`;
@@ -188,7 +188,7 @@ export default function CheckoutPage() {
   };
 
   // ====== LOADING STATE ======
-  if (!isHydrated) {
+  if (!hydrated) {
     return (
       <div className="page-content" style={{ paddingTop: 40, textAlign: 'center' }}>
         <span style={{ fontSize: 48 }}>⏳</span>
@@ -393,9 +393,8 @@ export default function CheckoutPage() {
           <div className="content-section" style={{ marginBottom: 16 }}>
             <h3 className="section-title">🚚 Select Delivery Slot</h3>
             <DeliverySlotVoting
-              slots={deliverySlots}
-              onSelect={(slotId: string) => setSelectedSlot(slotId)}
-              selectedSlotId={selectedSlot}
+              onSelectSlot={(slotId: string) => setSelectedSlot(slotId)}
+              selectedSlot={selectedSlot}
             />
           </div>
 
