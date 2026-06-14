@@ -147,9 +147,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [userId]);
 
-  // Poll for cart updates every 10 seconds (detects when another member checks out)
+  // Poll for cart updates every 30 seconds (detects when another member checks out)
+  // Only update checkedOut status and memberIds — never overwrite local items
   useEffect(() => {
-    const uid = userId || getCurrentUserId();
+    if (!userId) return;
+    const uid = userId;
     const interval = setInterval(() => {
       fetchCartsFromAPI(uid).then(fetchedCarts => {
         if (fetchedCarts && fetchedCarts.length > 0) {
@@ -157,14 +159,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             const next = { ...prev };
             fetchedCarts.forEach((c: any) => {
               const existing = next[c.id];
-              // Update checkedOut status and items from DB
-              next[c.id] = { ...(existing || {}), ...c, items: c.items || existing?.items || [], isActive: true };
+              if (existing) {
+                // Only update metadata (checkedOut, memberIds) — keep local items intact
+                next[c.id] = {
+                  ...existing,
+                  checkedOut: c.checkedOut,
+                  checkedOutBy: c.checkedOutBy,
+                  checkedOutAt: c.checkedOutAt,
+                  memberIds: c.memberIds || existing.memberIds,
+                };
+              } else {
+                // New cart we don't have locally — add it fully
+                next[c.id] = { ...c, items: c.items || [], isActive: true };
+              }
             });
             return next;
           });
         }
       }).catch(() => {});
-    }, 10000);
+    }, 30000);
     return () => clearInterval(interval);
   }, [userId]);
 

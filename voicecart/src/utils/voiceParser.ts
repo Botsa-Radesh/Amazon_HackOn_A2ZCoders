@@ -41,7 +41,15 @@ export async function parseVoiceCommand(text: string): Promise<VoiceCommandResul
   }
 
   const isRecipeIntent = /recipe|make|how to make|cook|prepare|i'd like/i.test(lower);
-  if (isRecipeIntent || (/i (want|need)/i.test(lower) && recipes.some(r => r.name.toLowerCase().split(' ').some(kw => lower.includes(kw))))) {
+  // Also check if input directly matches a recipe name (e.g., "chicken biryani", "dal tadka")
+  const directRecipeMatch = recipes.find(r => lower.includes(r.name.toLowerCase()));
+  if (isRecipeIntent || directRecipeMatch || (/i (want|need)/i.test(lower) && recipes.some(r => r.name.toLowerCase().split(' ').some(kw => lower.includes(kw))))) {
+    // If we have a direct match, use it immediately without calling AI
+    if (directRecipeMatch) {
+      const match = lower.match(/(\d+)\s*(people|persons|servings|pax)/i) || lower.match(/for\s+(\d+)/);
+      const servings = match ? match[1] : String(directRecipeMatch.servings);
+      return { intent: 'RECIPE_ADD', params: { recipeId: directRecipeMatch.id, servings }, originalText: text, response: `Adding all ingredients for ${directRecipeMatch.name} for ${servings} people to your cart!` };
+    }
     const recipeName = await findBestRecipeMatch(text);
     if (recipeName) {
       const recipe = recipes.find(r => r.name === recipeName);

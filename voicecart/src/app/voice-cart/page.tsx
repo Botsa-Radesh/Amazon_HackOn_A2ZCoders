@@ -333,14 +333,31 @@ function VoiceCartPageInner() {
     }
     if (isListening) {
       stopListening();
-      if (transcript) handleVoiceCommand(transcript);
-      setMicStatus('idle');
+      // Small delay to let final transcript settle, then process
+      setTimeout(() => {
+        // Read transcript directly from DOM-accessible state
+        setMicStatus('idle');
+      }, 100);
     } else {
       startListening();
       setMicStatus('listening');
       setAiResponse('');
     }
-  }, [isListening, stopListening, startListening, transcript, handleVoiceCommand, activeCart, showToast, speak]);
+  }, [isListening, stopListening, startListening, activeCart, showToast, speak]);
+
+  // When listening stops and we have a transcript, process it
+  const wasListeningRef = useRef(false);
+  useEffect(() => {
+    if (wasListeningRef.current && !isListening) {
+      // Listening just stopped — process transcript if we have one
+      const textToProcess = transcript;
+      if (textToProcess && textToProcess.trim().length > 0) {
+        handleVoiceCommand(textToProcess);
+      }
+    }
+    wasListeningRef.current = isListening;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isListening, transcript]);
 
   const handleBudgetCart = (amount: number) => {
     if (!activeCart) return;
