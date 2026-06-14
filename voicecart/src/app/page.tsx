@@ -59,8 +59,8 @@ export default function HomePage() {
   }, []);
 
   const filteredProducts = activeCategory === 'all'
-    ? products
-    : products.filter(p => p.category === activeCategory);
+    ? products.filter(p => p.trending)
+    : products.filter(p => p.category === activeCategory && p.trending);
 
   const handleAddToCart = (product: Product) => {
     if (!activeCartId) {
