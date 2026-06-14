@@ -191,31 +191,98 @@ export default function SplitPaymentPage() {
             <span>Vote for a delivery slot and pay the full bill. You can split the bill with your group later.</span>
           </div>
 
-          {/* Cart Summary */}
+          {/* Cart Summary — Full itemized breakdown by member */}
           <div className="content-section" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 13, color: 'var(--amazon-text-secondary)' }}>{totalItems} items</span>
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--amazon-text)' }}>Total</span>
-            </div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--amazon-text)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>🛒</span> Order Items ({totalItems} items)
+            </h3>
+
+            {/* Shared Items Section */}
+            {items.filter(i => i.isShared).length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 10px', background: '#f0f7ff', borderRadius: 8, border: '1px solid #d0e3f7' }}>
+                  <span style={{ fontSize: 16 }}>🤝</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-text)' }}>Shared Items</span>
+                  <span style={{ fontSize: 11, color: 'var(--amazon-text-muted)', marginLeft: 'auto' }}>
+                    ₹{items.filter(i => i.isShared).reduce((s, i) => s + i.product.price * i.quantity, 0)}
+                  </span>
+                </div>
+                {items.filter(i => i.isShared).map(item => {
+                  const addedByMember = getMemberById(item.addedBy);
+                  return (
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', marginBottom: 4, background: '#fafafa', borderRadius: 8, border: '1px solid #eee' }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
+                        {item.product.emoji}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--amazon-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.product.name}
+                        </p>
+                        <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)' }}>
+                          {item.quantity} × ₹{item.product.price} · Added by {addedByMember?.name || 'Unknown'}
+                        </p>
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-price)', flexShrink: 0 }}>
+                        ₹{item.product.price * item.quantity}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Per-Member Items */}
             {(() => {
-              const seen = new Set<string>();
-              return items.map(item => {
-                if (seen.has(item.addedBy) || item.isShared) return null;
-                seen.add(item.addedBy);
-                const member = getMemberById(item.addedBy);
-                const memberItems = items.filter(i => i.addedBy === item.addedBy && !i.isShared);
-                const total = memberItems.reduce((s, i) => s + i.product.price * i.quantity, 0);
+              const memberIds = [...new Set(items.filter(i => !i.isShared).map(i => i.addedBy))];
+              return memberIds.map(memberId => {
+                const member = getMemberById(memberId);
+                const memberItems = items.filter(i => i.addedBy === memberId && !i.isShared);
+                if (memberItems.length === 0) return null;
+                const memberTotal = memberItems.reduce((s, i) => s + i.product.price * i.quantity, 0);
                 return (
-                  <div key={item.addedBy} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
-                    <span style={{ color: 'var(--amazon-text-secondary)' }}>{member?.avatar || '👤'} {member?.name || (item.addedBy === currentUserId ? 'You' : 'Guest')}</span>
-                    <span>₹{total}</span>
+                  <div key={memberId} style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 10px', background: memberId === currentUserId ? '#f0fff4' : '#fef9f0', borderRadius: 8, border: `1px solid ${memberId === currentUserId ? '#b7e4c7' : '#f0deb8'}` }}>
+                      <span style={{ fontSize: 18 }}>{member?.avatar || '👤'}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-text)' }}>
+                        {member?.name || (memberId === currentUserId ? 'You' : 'Guest')}
+                        {memberId === currentUserId && <span style={{ fontSize: 10, color: 'var(--amazon-success)', marginLeft: 4 }}>(You)</span>}
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--amazon-text-muted)', marginLeft: 'auto' }}>
+                        {memberItems.length} item{memberItems.length !== 1 ? 's' : ''} · ₹{memberTotal}
+                      </span>
+                    </div>
+                    {memberItems.map(item => (
+                      <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', marginBottom: 4, background: '#fafafa', borderRadius: 8, border: '1px solid #eee' }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
+                          {item.product.emoji}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--amazon-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {item.product.name}
+                          </p>
+                          <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)' }}>
+                            {item.quantity} × ₹{item.product.price} · {item.product.brand}
+                          </p>
+                        </div>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-price)', flexShrink: 0 }}>
+                          ₹{item.product.price * item.quantity}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 );
               });
             })()}
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--amazon-border-light)', paddingTop: 8, marginTop: 4 }}>
-              <span className="font-bold" style={{ color: 'var(--amazon-text)' }}>Grand Total</span>
-              <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--amazon-price)' }}>₹{totalPrice}</span>
+
+            {/* Grand Total */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '2px solid var(--amazon-border)', paddingTop: 12, marginTop: 8 }}>
+              <div>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--amazon-text)' }}>Grand Total</span>
+                <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)', marginTop: 2 }}>
+                  {totalItems} items · {activeCart?.splitMode || 'auto'} split
+                </p>
+              </div>
+              <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--amazon-price)' }}>₹{totalPrice}</span>
             </div>
           </div>
 

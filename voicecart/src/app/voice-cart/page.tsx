@@ -424,8 +424,147 @@ function VoiceCartPageInner() {
     return acc;
   }, {} as Record<string, CartItem[]>);
 
+  const isPersonalActive = activeCartId === personalCartId;
+  const isCommonActive = !isPersonalActive && commonCarts.some(c => c.id === activeCartId);
+
   return (
     <div className="page-content" style={{ paddingTop: 16, paddingBottom: 80 }}>
+      {/* Cart Type Tabs */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--amazon-border)' }}>
+        <button
+          onClick={() => { if (personalCartId) setActiveCart(personalCartId); }}
+          style={{
+            flex: 1, padding: '12px 16px', border: 'none', cursor: 'pointer',
+            background: isPersonalActive ? '#fff' : '#f5f5f5',
+            borderBottom: isPersonalActive ? '3px solid var(--amazon-orange)' : '3px solid transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <span style={{ fontSize: 20 }}>🛒</span>
+          <div style={{ textAlign: 'left' }}>
+            <p style={{ fontSize: 13, fontWeight: isPersonalActive ? 700 : 500, color: isPersonalActive ? 'var(--amazon-text)' : 'var(--amazon-text-muted)' }}>
+              My Cart
+            </p>
+            <p style={{ fontSize: 10, color: 'var(--amazon-text-muted)' }}>
+              {personalCartId && carts[personalCartId] ? `${carts[personalCartId].items.length} items` : '0 items'}
+            </p>
+          </div>
+        </button>
+        <button
+          onClick={() => {
+            if (commonCarts.length > 0) {
+              setActiveCart(commonCarts[0].id);
+            } else {
+              router.push('/common-cart');
+            }
+          }}
+          style={{
+            flex: 1, padding: '12px 16px', border: 'none', cursor: 'pointer',
+            borderLeft: '1px solid var(--amazon-border)',
+            background: isCommonActive ? '#fff' : '#f5f5f5',
+            borderBottom: isCommonActive ? '3px solid var(--amazon-orange)' : '3px solid transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <span style={{ fontSize: 20 }}>👥</span>
+          <div style={{ textAlign: 'left' }}>
+            <p style={{ fontSize: 13, fontWeight: isCommonActive ? 700 : 500, color: isCommonActive ? 'var(--amazon-text)' : 'var(--amazon-text-muted)' }}>
+              Group Cart
+            </p>
+            <p style={{ fontSize: 10, color: 'var(--amazon-text-muted)' }}>
+              {commonCarts.length > 0 ? `${commonCarts.length} cart${commonCarts.length > 1 ? 's' : ''} · ${commonCarts.reduce((s, c) => s + c.items.length, 0)} items` : 'None yet'}
+            </p>
+          </div>
+        </button>
+      </div>
+
+      {/* Common Cart Switcher — show ALL group carts the user is in */}
+      {isCommonActive && commonCarts.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-text)' }}>
+              Select a group cart to shop:
+            </p>
+            <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }}
+              onClick={() => router.push('/common-cart')}>
+              + New
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {commonCarts.map(cc => {
+              const isSelected = activeCartId === cc.id;
+              const ccMembers = cc.memberIds.map(id => getMemberById(id)).filter(Boolean);
+              const ccTotal = cc.items.reduce((s, i) => s + i.product.price * i.quantity, 0);
+              return (
+                <div key={cc.id}
+                  onClick={() => setActiveCart(cc.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 14px', borderRadius: 10, cursor: 'pointer',
+                    border: isSelected ? '2px solid var(--amazon-orange)' : '1px solid var(--amazon-border-light)',
+                    background: isSelected ? '#fffbf0' : '#fff',
+                    transition: 'all 0.15s ease',
+                    boxShadow: isSelected ? '0 2px 8px rgba(255,153,0,0.12)' : 'none',
+                  }}
+                >
+                  <div style={{
+                    width: 42, height: 42, borderRadius: 10,
+                    background: isSelected ? '#fff3d4' : '#f5f5f5',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 20, flexShrink: 0,
+                  }}>
+                    🏠
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--amazon-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {cc.name}
+                      </p>
+                      {isSelected && (
+                        <span style={{ fontSize: 9, background: 'var(--amazon-orange)', color: '#111', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>ACTIVE</span>
+                      )}
+                    </div>
+                    <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)', marginTop: 2 }}>
+                      {cc.items.length} items · ₹{ccTotal} · Code: <strong style={{ color: 'var(--amazon-orange)', letterSpacing: 1 }}>{cc.code}</strong>
+                    </p>
+                    <div style={{ display: 'flex', gap: 2, marginTop: 4 }}>
+                      {ccMembers.slice(0, 5).map(m => m && (
+                        <span key={m.id} title={m.name} style={{ fontSize: 13 }}>{m.avatar}</span>
+                      ))}
+                      {cc.memberIds.length > 5 && (
+                        <span style={{ fontSize: 10, color: 'var(--amazon-text-muted)' }}>+{cc.memberIds.length - 5}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ flexShrink: 0 }}>
+                    {isSelected
+                      ? <span style={{ fontSize: 18, color: 'var(--amazon-orange)' }}>✓</span>
+                      : <span style={{ fontSize: 12, color: 'var(--amazon-text-muted)' }}>Select ▶</span>
+                    }
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* No common carts state */}
+      {isCommonActive && commonCarts.length === 0 && (
+        <div className="amazon-card" style={{ textAlign: 'center', padding: 32, marginBottom: 16 }}>
+          <span style={{ fontSize: 48 }}>👥</span>
+          <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--amazon-text)', marginTop: 12 }}>No Group Carts Yet</p>
+          <p style={{ fontSize: 12, color: 'var(--amazon-text-muted)', margin: '6px 0 16px' }}>
+            Create a common cart or join one with an invite code
+          </p>
+          <button className="btn btn-primary" onClick={() => router.push('/common-cart')}>
+            ✨ Create or Join Group Cart
+          </button>
+        </div>
+      )}
+
       {/* Compact Cart Header */}
       <div className="amazon-card" style={{ marginBottom: 16, background: activeCart ? '#fff' : '#fff8e1', border: activeCart ? '' : '2px solid #f0c14b' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -434,71 +573,11 @@ function VoiceCartPageInner() {
             <div style={{ position: 'relative', flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <h1
-                  style={{ fontSize: 16, fontWeight: 700, color: 'var(--amazon-text)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-                  onClick={() => setShowCartSelector(!showCartSelector)}
-                  aria-expanded={showCartSelector}
-                  aria-haspopup="listbox"
-                  role="button"
+                  style={{ fontSize: 16, fontWeight: 700, color: 'var(--amazon-text)', display: 'flex', alignItems: 'center', gap: 4 }}
                 >
-                  {activeCart?.name || 'Select a cart...'}
-                  <span style={{ fontSize: 10, color: 'var(--amazon-text-muted)' }}>▼</span>
+                  {activeCart?.type === 'common' ? '👥' : '🛒'} {activeCart?.name || 'Select a cart...'}
                 </h1>
               </div>
-              {showCartSelector && (
-                <div role="listbox" aria-label="Cart selection" style={{
-                  position: 'absolute', top: '100%', left: 0, zIndex: 100,
-                  background: '#fff', border: '1px solid var(--amazon-border)',
-                  borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  minWidth: 260, padding: 8, marginTop: 4,
-                }}>
-                  {personalCartId && carts[personalCartId] && (
-                    <div
-                      role="option"
-                      aria-selected={activeCartId === personalCartId}
-                      style={{
-                        padding: '10px 12px', borderRadius: 6, cursor: 'pointer',
-                        background: activeCartId === personalCartId ? '#fef4e8' : 'transparent',
-                        display: 'flex', alignItems: 'center', gap: 8,
-                      }}
-                      onClick={() => { setActiveCart(personalCartId); setShowCartSelector(false); }}
-                    >
-                      <span style={{ fontSize: 18 }}>🛒</span>
-                      <div>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-text)' }}>{carts[personalCartId].name}</p>
-                        <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)' }}>Personal · {carts[personalCartId].items.length} items</p>
-                      </div>
-                      {activeCartId === personalCartId && <span style={{ marginLeft: 'auto', fontSize: 11, color: '#b12704' }}>✓</span>}
-                    </div>
-                  )}
-                  {commonCarts.map(cc => (
-                    <div
-                      key={cc.id}
-                      role="option"
-                      aria-selected={activeCartId === cc.id}
-                      style={{
-                        padding: '10px 12px', borderRadius: 6, cursor: 'pointer',
-                        background: activeCartId === cc.id ? '#fef4e8' : 'transparent',
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        borderTop: '1px solid var(--amazon-border-light)',
-                      }}
-                      onClick={() => { setActiveCart(cc.id); setShowCartSelector(false); }}
-                    >
-                      <span style={{ fontSize: 18 }}>🏠</span>
-                      <div>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-text)' }}>{cc.name}</p>
-                        <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)' }}>Common · {cc.items.length} items</p>
-                      </div>
-                      {activeCartId === cc.id && <span style={{ marginLeft: 'auto', fontSize: 11, color: '#b12704' }}>✓</span>}
-                    </div>
-                  ))}
-                  <div style={{ borderTop: '1px solid var(--amazon-border-light)', marginTop: 4, paddingTop: 4 }}>
-                    <button className="btn btn-ghost btn-sm w-full" style={{ fontSize: 12 }}
-                      onClick={() => { setShowCartSelector(false); router.push('/common-cart'); }}>
-                      + New Common Cart
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -776,7 +855,7 @@ function VoiceCartPageInner() {
                 <div key={m.id} style={{ marginBottom: 16, opacity: highlightMember && !isHighlighted ? 0.4 : 1 }}>
                   <h3 className="section-title" style={{ fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span>{m.avatar}</span>
-                    <span>{m.name}&apos;s Items</span>
+                    <span>{m.id === currentUserId ? 'Your' : `${m.name}'s`} Items</span>
                     <span style={{ fontSize: 12, color: 'var(--amazon-text-secondary)', fontWeight: 400 }}>
                       ₹{memberItems.reduce((s, i) => s + i.product.price * i.quantity, 0)}
                     </span>
@@ -796,6 +875,45 @@ function VoiceCartPageInner() {
                 </div>
               );
             })}
+
+            {/* Items from current user if not in cartMembers list (fallback) */}
+            {(() => {
+              const knownMemberIds = new Set(cartMembers.map(m => m.id));
+              const unmatchedItems = activeCart!.items.filter(i => !i.isShared && !knownMemberIds.has(i.addedBy));
+              if (unmatchedItems.length === 0) return null;
+              // Group by addedBy
+              const grouped: Record<string, typeof unmatchedItems> = {};
+              unmatchedItems.forEach(i => {
+                if (!grouped[i.addedBy]) grouped[i.addedBy] = [];
+                grouped[i.addedBy].push(i);
+              });
+              return Object.entries(grouped).map(([addedBy, items]) => {
+                const member = getMemberById(addedBy);
+                const label = addedBy === currentUserId ? 'Your' : (member?.name || 'Your');
+                return (
+                  <div key={addedBy} style={{ marginBottom: 16 }}>
+                    <h3 className="section-title" style={{ fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span>{member?.avatar || '👤'}</span>
+                      <span>{label} Items</span>
+                      <span style={{ fontSize: 12, color: 'var(--amazon-text-secondary)', fontWeight: 400 }}>
+                        ₹{items.reduce((s, i) => s + i.product.price * i.quantity, 0)}
+                      </span>
+                    </h3>
+                    {items.map(item => (
+                      <div key={item.id} style={{ marginBottom: 8 }}>
+                        <CartItemRow
+                          item={item}
+                          onRemove={removeItem}
+                          onToggleShared={toggleShared}
+                          onUpdateQty={updateQuantity}
+                          allergyWarning={checkAllergies(item.product, members, products) !== null}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                );
+              });
+            })()}
 
             {/* Total */}
             <div className="amazon-card animate-fadeIn" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #f0c14b', background: '#fffbf0' }}>

@@ -30,7 +30,7 @@ const staggerDelay = (i: number) => ({ animationDelay: `${i * 0.08}s` });
 export default function DashboardPage() {
   const router = useRouter();
   const { balance, nextMilestone, redeemOptions, transactions, redeemCoins, streak } = useCoins();
-  const { activeCartId, activeCart, commonCarts, savedTemplates, deleteTemplate, loadTemplate, totalPrice, totalItems } = useCart();
+  const { activeCartId, activeCart, commonCarts, savedTemplates, deleteTemplate, loadTemplate, totalPrice, totalItems, setActiveCart } = useCart();
   const { history } = useOrder();
   const { members, currentUserId, getMemberById } = useMembers();
   const { showToast } = useToast();
@@ -273,7 +273,7 @@ export default function DashboardPage() {
           }} onClick={() => router.push('/voice-cart')}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 22 }}>{activeCart.type === 'common' ? '🏠' : '🛒'}</span>
+                <span style={{ fontSize: 22 }}>{activeCart.type === 'common' ? '👥' : '🛒'}</span>
                 <div>
                   <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--amazon-text)' }}>{activeCart.name}</p>
                   <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)' }}>
@@ -303,6 +303,48 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* All Common Carts — always visible (even with 0 items after ordering) */}
+      {commonCarts.length > 0 && (
+        <div className="animate-fadeIn" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: 'var(--amazon-text)' }}>👥 My Group Carts</h3>
+            <button className="btn btn-link btn-sm" onClick={() => router.push('/group-cart')}>View All</button>
+          </div>
+          {commonCarts.map(cc => {
+            const ccTotal = cc.items.reduce((s, i) => s + i.product.price * i.quantity, 0);
+            const ccMembers = cc.memberIds.map(id => getMemberById(id)).filter(Boolean);
+            return (
+              <div key={cc.id} className="amazon-card" style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '12px 14px', marginBottom: 8, cursor: 'pointer',
+                border: activeCartId === cc.id ? '2px solid var(--amazon-orange)' : '1px solid var(--amazon-border-light)',
+              }} onClick={() => { setActiveCart(cc.id); router.push('/voice-cart'); }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f0f7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🏠</div>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-text)' }}>
+                      {cc.name}
+                      {activeCartId === cc.id && <span style={{ fontSize: 9, color: 'var(--amazon-orange)', marginLeft: 4 }}>● Active</span>}
+                    </p>
+                    <p style={{ fontSize: 11, color: 'var(--amazon-text-muted)' }}>
+                      {cc.items.length} items · ₹{ccTotal} · {cc.memberIds.length} members
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 2 }}>
+                    {ccMembers.slice(0, 3).map(m => m && (
+                      <span key={m.id} style={{ fontSize: 14 }}>{m.avatar}</span>
+                    ))}
+                  </div>
+                  <span style={{ fontSize: 12, color: 'var(--amazon-orange)' }}>▶</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -437,33 +479,6 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
-
-          {/* Other Carts */}
-          {commonCarts.filter(cc => cc.id !== activeCartId).length > 0 && (
-            <div className="content-section" style={{ marginBottom: 16, padding: 14 }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>🏠 Other Common Carts</h3>
-              {commonCarts.filter(cc => cc.id !== activeCartId).map(cc => (
-                <div key={cc.id} className="amazon-card" style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '10px 12px', marginBottom: 6, cursor: 'pointer',
-                }} onClick={() => { router.push('/voice-cart'); }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 20 }}>🏠</span>
-                    <div>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--amazon-text)' }}>{cc.name}</p>
-                      <p style={{ fontSize: 10, color: 'var(--amazon-text-muted)' }}>
-                        {cc.items.length} items · Code: {cc.code}
-                      </p>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 11, color: 'var(--amazon-text-muted)' }}>{cc.memberIds.length} members</span>
-                    <span style={{ fontSize: 12, color: 'var(--amazon-orange)' }}>▶</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
           {/* Recent Orders */}
           {history.length > 0 && (

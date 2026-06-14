@@ -85,11 +85,11 @@ export default function HomePage() {
           </h1>
           <p>Voice-powered group shopping for your Amazon quick-commerce needs. Just speak, and we&apos;ll handle the rest.</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Link href="/voice-cart" className="btn btn-primary btn-lg" style={{ textDecoration: 'none' }}>
-              🎙️ Start Voice Shopping
+            <Link href="/my-cart" className="btn btn-primary btn-lg" style={{ textDecoration: 'none' }}>
+              🛒 My Cart
             </Link>
-            <Link href="/common-cart" className="btn btn-secondary btn-lg" style={{ textDecoration: 'none' }}>
-              👥 Create Group Cart
+            <Link href="/group-cart" className="btn btn-secondary btn-lg" style={{ textDecoration: 'none' }}>
+              👥 Group Cart
             </Link>
           </div>
         </div>
@@ -169,18 +169,18 @@ export default function HomePage() {
 
         {/* Quick Actions */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16, marginBottom: 24 }}>
-          <Link href="/voice-cart" style={{ textDecoration: 'none' }}>
+          <Link href="/my-cart" style={{ textDecoration: 'none' }}>
             <div className="amazon-card" style={{ textAlign: 'center', padding: 24, cursor: 'pointer' }}>
-              <span style={{ fontSize: 40 }}>🎙️</span>
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: '12px 0 4px', color: 'var(--amazon-text)' }}>Solo Voice Cart</h3>
-              <p style={{ fontSize: 13, color: 'var(--amazon-text-secondary)' }}>Shop alone with voice commands</p>
+              <span style={{ fontSize: 40 }}>🛒</span>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: '12px 0 4px', color: 'var(--amazon-text)' }}>My Cart</h3>
+              <p style={{ fontSize: 13, color: 'var(--amazon-text-secondary)' }}>Your personal shopping cart</p>
             </div>
           </Link>
-          <Link href="/common-cart" style={{ textDecoration: 'none' }}>
+          <Link href="/group-cart" style={{ textDecoration: 'none' }}>
             <div className="amazon-card" style={{ textAlign: 'center', padding: 24, cursor: 'pointer' }}>
-              <span style={{ fontSize: 40 }}>🏠</span>
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: '12px 0 4px', color: 'var(--amazon-text)' }}>Common Cart</h3>
-              <p style={{ fontSize: 13, color: 'var(--amazon-text-secondary)' }}>Create or join a group shopping cart</p>
+              <span style={{ fontSize: 40 }}>👥</span>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: '12px 0 4px', color: 'var(--amazon-text)' }}>Group Cart</h3>
+              <p style={{ fontSize: 13, color: 'var(--amazon-text-secondary)' }}>Shop together with flatmates & family</p>
             </div>
           </Link>
           <Link href="/dashboard" style={{ textDecoration: 'none' }}>
