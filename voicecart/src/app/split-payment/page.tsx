@@ -43,7 +43,22 @@ export default function SplitPaymentPage() {
   const handleProcessPayment = async () => {
     if (!selectedSlot) { showToast('Please select a delivery slot!', 'warning'); return; }
     setIsProcessing(true);
-    await new Promise(r => setTimeout(r, 2000));
+
+    // #10 Fix: Check if cart was already checked out before processing
+    if (activeCart?.id) {
+      try {
+        const checkRes = await fetch(`/api/carts/${activeCart.id}`);
+        const checkData = await checkRes.json();
+        if (checkData.cart?.checkedOut) {
+          showToast('This cart was already checked out by another member!', 'error');
+          setIsProcessing(false);
+          router.push('/splits');
+          return;
+        }
+      } catch {}
+    }
+
+    await new Promise(r => setTimeout(r, 1500));
 
     const coinInfo = calculateCoinsEarned(totalPrice, 'amazon_pay', true, streak);
     const totalCoins = coinInfo.earned;

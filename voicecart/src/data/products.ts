@@ -224,20 +224,100 @@ export function searchProducts(query: string): Product[] {
 }
 
 export function findBestMatch(query: string): Product | undefined {
-  const q = query.toLowerCase();
+  const q = query.toLowerCase().trim();
   const words = q.split(/\s+/);
+
+  // Common voice aliases (Hindi/colloquial → product name keywords)
+  const aliases: Record<string, string[]> = {
+    'atta': ['wheat flour'],
+    'aata': ['wheat flour'],
+    'dahi': ['dahi', 'yogurt'],
+    'curd': ['dahi', 'yogurt'],
+    'chawal': ['rice'],
+    'chaawal': ['rice'],
+    'aloo': ['potato'],
+    'pyaaz': ['onion'],
+    'pyaz': ['onion'],
+    'tamatar': ['tomato'],
+    'doodh': ['milk'],
+    'dudh': ['milk'],
+    'makhan': ['butter'],
+    'namak': ['salt'],
+    'cheeni': ['sugar'],
+    'shakkar': ['sugar'],
+    'tel': ['oil', 'cooking oil'],
+    'mirch': ['chilli'],
+    'mirchi': ['chilli'],
+    'haldi': ['turmeric'],
+    'jeera': ['cumin'],
+    'rai': ['mustard'],
+    'anda': ['eggs'],
+    'ande': ['eggs'],
+    'murgi': ['chicken'],
+    'murghi': ['chicken'],
+    'bread': ['bread'],
+    'roti': ['wheat flour'],
+    'chapati': ['wheat flour'],
+    'noodles': ['maggi', 'noodles'],
+    'chips': ['lays', 'chips'],
+    'biscuit': ['parle', 'biscuit'],
+    'biscuits': ['parle', 'biscuit'],
+    'juice': ['juice', 'mango juice'],
+    'coffee': ['coffee', 'nescafe'],
+    'chai': ['tea', 'chai masala'],
+    'shampoo': ['shampoo'],
+    'sabun': ['soap'],
+    'detergent': ['detergent'],
+  };
+
+  // Expand query with aliases
+  let expandedWords = [...words];
+  for (const w of words) {
+    if (aliases[w]) {
+      expandedWords = [...expandedWords, ...aliases[w].flatMap(a => a.split(' '))];
+    }
+  }
+
   let best: Product | undefined;
   let bestScore = 0;
+
   for (const p of products) {
     let score = 0;
     const name = p.name.toLowerCase();
-    for (const w of words) {
+
+    // Exact name match gets highest score
+    if (name === q) { score += 100; }
+    // Name starts with query
+    else if (name.startsWith(q)) { score += 50; }
+
+    for (const w of expandedWords) {
       if (w.length < 2) continue;
-      if (name.includes(w)) score += 10;
+      if (name === w) score += 25;
+      else if (name.includes(w)) score += 10;
       if (p.tags.some(t => t.includes(w))) score += 5;
       if (p.brand.toLowerCase().includes(w)) score += 3;
       if (p.category.toLowerCase().includes(w)) score += 2;
     }
+
+    // Prefer trending (default size) products over bulk variants
+    if (p.trending && score > 0) score += 2;
+
+    // Fuzzy: handle common misspellings (off by 1 character)
+    if (score === 0 && q.length > 3) {
+      const nameWords = name.split(/\s+/);
+      for (const nw of nameWords) {
+        if (nw.length > 3 && Math.abs(nw.length - q.length) <= 2) {
+          let matches = 0;
+          for (let i = 0; i < Math.min(nw.length, q.length); i++) {
+            if (nw[i] === q[i]) matches++;
+          }
+          if (matches / Math.max(nw.length, q.length) > 0.7) {
+            score += 8;
+          }
+        }
+      }
+    }
+
     if (score > bestScore) {
       bestScore = score;
       best = p;

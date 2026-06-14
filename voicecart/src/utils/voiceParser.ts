@@ -90,8 +90,16 @@ export async function parseVoiceCommand(text: string): Promise<VoiceCommandResul
     return { intent: 'SUMMARY', params: {}, originalText: text, response: 'Here\'s your cart summary!' };
   }
 
-  if (/remove|delete|take out|clear/i.test(lower) && !/add.*and.*remove/i.test(lower)) {
-    const itemName = lower.replace(/remove|delete|take out|clear|the|please/gi, '').trim();
+  // #7 Fix: "clear cart" requires confirmation — treat as special intent
+  if (/clear\s*(all|cart|everything)/i.test(lower)) {
+    return { intent: 'UNKNOWN', params: { query: 'clear_cart' }, originalText: text, response: 'Are you sure you want to clear the entire cart? Type "yes clear" to confirm.' };
+  }
+  if (/^(yes\s+)?clear$/i.test(lower) || /^yes\s+clear/i.test(lower)) {
+    return { intent: 'REMOVE_ITEM', params: { productId: '__CLEAR_ALL__' }, originalText: text, response: 'Cart cleared!' };
+  }
+
+  if (/remove|delete|take out/i.test(lower) && !/add.*and.*remove/i.test(lower)) {
+    const itemName = lower.replace(/remove|delete|take out|the|please/gi, '').trim();
     if (!itemName || itemName.length < 2) {
       return { intent: 'UNKNOWN', params: { query: itemName }, originalText: text, response: 'What would you like to remove?' };
     }

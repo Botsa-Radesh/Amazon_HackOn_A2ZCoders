@@ -234,6 +234,13 @@ function VoiceCartPageInner() {
       case 'REMOVE_ITEM': {
         const actCart = activeCart;
         if (!actCart) break;
+        // #7 Fix: Handle "clear all" with confirmation
+        if (command.params.productId === '__CLEAR_ALL__') {
+          clearCart();
+          showToast('Cart cleared!', 'success');
+          speak('Cart cleared!');
+          break;
+        }
         const toRemove = actCart.items.find(i => i.product.id === command.params.productId);
         if (toRemove) removeItem(toRemove.id);
         showToast(command.response, 'success');

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDynamoClient, TABLE_NAME } from '@/lib/dynamodb';
 import { Keys } from '@/lib/schema';
-import { PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, QueryCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 
 export async function GET(req: NextRequest) {
   try {
@@ -29,26 +29,38 @@ export async function POST(req: NextRequest) {
 
     const orderId = `ord-${Date.now()}`;
 
-    // Get all member IDs involved in the order. Fallback to a single user if memberPayments is empty.
-    const memberIds = order.memberPayments && order.memberPayments.length > 0 
-      ? order.memberPayments.map((p: any) => p.memberId) 
-      : [order.userId || 'unknown'];
+    // #3 Fix: Server-side validation of order total from items
+    if (order.items && order.items.length > 0) {
+      const serverTotal = order.items.reduce((s: number, i: any) => s + (i.product?.price || 0) * (i.quantity || 1), 0);
+      if (order.totalAmount && Math.abs(order.totalAmount - serverTotal) > serverTotal * 0.05) {
+        return NextResponse.json({ error: 'Order total mismatch. Please refresh and try again.' }, { status: 400 });
+      }
+      order.totalAmount = serverTotal;
+    }
 
-    const itemsToPut = memberIds.map((uid: string) => ({
+    // #10 Fix: Prevent double checkout — check if cart already checked out
+    if (order.cartId) {
+      const cartResult = await client.send(new GetCommand({
+        TableName: TABLE_NAME,
+        Key: Keys.cart(order.cartId),
+      }));
+      if (cartResult.Item?.checkedOut) {
+        return NextResponse.json({ error: 'This cart has already been checked out.', alreadyCheckedOut: true }, { status: 409 });
+      }
+    }
+
+    const orderItem = {
       ...Keys.order(orderId),
-      ...Keys.userOrders(uid),
+      ...Keys.userOrders(order.userId || 'unknown'),
       id: orderId,
       ...order,
       status: 'confirmed',
       createdAt: new Date().toISOString(),
-    }));
+    };
 
-    // Save the order to DynamoDB for each member individually
-    for (const item of itemsToPut) {
-      await client.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
-    }
+    await client.send(new PutCommand({ TableName: TABLE_NAME, Item: orderItem }));
 
-    return NextResponse.json({ order: itemsToPut[0] });
+    return NextResponse.json({ order: orderItem });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
