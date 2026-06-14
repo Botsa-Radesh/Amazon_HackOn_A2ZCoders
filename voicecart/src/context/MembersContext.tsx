@@ -28,7 +28,7 @@ const MembersContext = createContext<MembersContextType | null>(null);
 
 export function MembersProvider({ children }: { children: React.ReactNode }) {
   const [members, setMembers] = useState<Member[]>(defaultMembers);
-  const { userId } = useAuth();
+  const { userId, user } = useAuth();
   const currentUserId = useMemo(() => userId || 'guest', [userId]);
 
   useEffect(() => {
@@ -41,6 +41,36 @@ export function MembersProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
     return () => { mounted = false; };
   }, []);
+
+  // Ensure the logged-in user always exists in the members list with their real name
+  useEffect(() => {
+    if (!userId || !user?.name) return;
+    setMembers(prev => {
+      const existing = prev.find(m => m.id === userId);
+      if (existing) {
+        // Update name if it's still generic
+        if (existing.name === 'You' || existing.name === 'Guest' || existing.name !== user.name) {
+          return prev.map(m => m.id === userId ? { ...m, name: user.name } : m);
+        }
+        return prev;
+      }
+      // User not in members list — add them
+      const newMember: Member = {
+        id: userId,
+        name: user.name,
+        avatar: '👤',
+        role: 'creator',
+        diet: 'non-veg',
+        allergies: [],
+        favoriteBrands: [],
+        dislikes: [],
+        isOnline: true,
+        isTyping: false,
+      };
+      syncMemberToAPI(newMember).catch(() => {});
+      return [...prev, newMember];
+    });
+  }, [userId, user?.name]);
 
   const updateMember = useCallback((memberId: string, updates: Partial<Member>) => {
     setMembers(prev => prev.map(m => m.id === memberId ? { ...m, ...updates } : m));
