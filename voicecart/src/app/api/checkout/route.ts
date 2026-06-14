@@ -214,17 +214,11 @@ export async function POST(req: NextRequest) {
       }));
     }
 
-    // ====== STEP 9: Reset cart (keep alive, clear checkedOut) ======
-    await client.send(new UpdateCommand({
-      TableName: TABLE_NAME,
-      Key: Keys.cart(cartId),
-      UpdateExpression: 'SET checkedOut = :co, checkedOutBy = :by, checkedOutAt = :at',
-      ExpressionAttributeValues: {
-        ':co': false,
-        ':by': '',
-        ':at': '',
-      },
-    }));
+    // ====== STEP 9: Keep checkedOut=true briefly so other members get notified ======
+    // The checkedOut flag + checkedOutBy tells other members who paid.
+    // It will be reset when any member starts adding new items (via clearCartAfterCheckout).
+    // Items are already deleted above, so the cart is empty but flagged as "just paid".
+    // No update needed here — checkedOut was already set in Step 2.
 
     // Get final balance if coins were earned
     let finalBalance: number | undefined;

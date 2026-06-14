@@ -236,9 +236,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                 // For my own items: keep local version but update quantity if remote is higher
                 let mergedItems: CartItem[];
                 if (existing.type === 'common') {
-                  // If remote has 0 items, it means someone paid and cleared the cart — reset locally too
+                  // If remote has 0 items and we had items, someone paid — trigger notification
                   if (remoteItems.length === 0 && existing.items.length > 0) {
                     mergedItems = [];
+                    // Dispatch custom event so PaymentNotification can catch it
+                    if (typeof window !== 'undefined' && c.checkedOutBy && c.checkedOutBy !== uid) {
+                      window.dispatchEvent(new CustomEvent('voicecart-payment-done', {
+                        detail: {
+                          cartId: c.id,
+                          cartName: existing.name || c.name,
+                          paidBy: c.checkedOutBy,
+                          splitMode: existing.splitMode || c.splitMode,
+                        }
+                      }));
+                    }
                   } else {
                     // Keep my local items (added by me) — but update quantity from remote if changed
                     const myLocalItems = existing.items.filter((i: CartItem) => i.addedBy === uid);

@@ -7,6 +7,7 @@ import { CoinsProvider } from '@/context/CoinsContext';
 import { MembersProvider } from '@/context/MembersContext';
 import { OrderProvider } from '@/context/OrderContext';
 import { ToastProvider } from './NotificationToast';
+import { PaymentNotification } from './PaymentNotification';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -18,6 +19,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
               <OrderProvider>
                 <ToastProvider>
                   {children}
+                  <PaymentNotification />
                 </ToastProvider>
               </OrderProvider>
             </CommonCartProvider>
