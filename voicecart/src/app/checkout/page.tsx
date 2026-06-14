@@ -9,6 +9,7 @@ import { useToast } from '@/components/NotificationToast';
 import { CoinsAnimation } from '@/components/CoinsAnimation';
 import { Confetti } from '@/components/Confetti';
 import { DeliverySlotVoting } from '@/components/DeliverySlotVoting';
+import { CheckoutStepper } from '@/components/CheckoutStepper';
 import { calculateCoinsEarned } from '@/utils/coinsCalculator';
 
 export default function CheckoutPage() {
@@ -301,6 +302,9 @@ export default function CheckoutPage() {
             <span style={{ fontSize: 18 }}>💳</span>
             <span>Only one member needs to pay. Others will see their split amount automatically.</span>
           </div>
+
+          {/* Progress Stepper */}
+          <CheckoutStepper currentStep={selectedSlot ? 3 : 1} />
 
           {/* ===== ITEMS READY TO CHECKOUT ===== */}
           <div className="content-section" style={{ marginBottom: 16 }}>

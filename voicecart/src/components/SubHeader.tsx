@@ -4,14 +4,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const categoryLinks = [
-  { href: '/', label: 'All' },
+  { href: '/', label: 'All', emoji: '≡' },
   { href: '/personal-cart', label: 'My Cart', emoji: '🛒' },
   { href: '/group-cart', label: 'Group Cart', emoji: '👥' },
-  { href: '/common-cart', label: 'Common Cart', emoji: '🏠' },
+  { href: '/common-cart', label: 'Create/Join', emoji: '➕' },
   { href: '/dashboard', label: 'Dashboard', emoji: '📊' },
   { href: '/members', label: 'Members', emoji: '👤' },
   { href: '/checkout', label: 'Checkout', emoji: '💳' },
   { href: '/splits', label: 'My Splits', emoji: '💰' },
+  { href: '/orders', label: 'Orders', emoji: '📦' },
+  { href: '/search', label: 'Browse', emoji: '🔍' },
 ];
 
 export function SubHeader() {
@@ -20,26 +22,16 @@ export function SubHeader() {
   return (
     <div className="sub-header desktop-only">
       <div className="sub-header-inner">
-        <Link href="/" className="sub-header-item" style={{ fontWeight: 700 }}>
-          <span className="hamburger">
-            <span /><span /><span />
-          </span>
-          All
-        </Link>
-        {categoryLinks.slice(1).map(link => (
+        {categoryLinks.map(link => (
           <Link
             key={link.href}
             href={link.href}
-            className={`sub-header-item ${pathname === link.href ? 'active' : ''}`}
+            className={`sub-header-item ${pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href)) ? 'active' : ''}`}
           >
-            {link.emoji && <span>{link.emoji}</span>}
+            <span style={{ fontSize: 15 }}>{link.emoji}</span>
             {link.label}
           </Link>
         ))}
-        <span className="sub-header-item" style={{ opacity: 0.6 }}>Today&apos;s Deals</span>
-        <span className="sub-header-item" style={{ opacity: 0.6 }}>Customer Service</span>
-        <span className="sub-header-item" style={{ opacity: 0.6 }}>Gift Cards</span>
-        <span className="sub-header-item" style={{ opacity: 0.6 }}>Sell</span>
       </div>
     </div>
   );

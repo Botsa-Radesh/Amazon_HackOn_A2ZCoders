@@ -13,6 +13,7 @@ import { RecipeModal } from '@/components/RecipeModal';
 import { AllergyWarningModal } from '@/components/AllergyWarning';
 import { BudgetBar } from '@/components/BudgetBar';
 import { AIStatusBadge } from '@/components/AIStatusBadge';
+import { StickyCheckoutBar } from '@/components/StickyCheckoutBar';
 import { useVoice } from '@/hooks/useVoice';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { parseVoiceCommand } from '@/utils/voiceParser';
@@ -1016,6 +1017,9 @@ function VoiceCartPageInner() {
       {allergyWarning && (
         <AllergyWarningModal warning={allergyWarning} onClose={() => setAllergyWarning(null)} />
       )}
+
+      {/* Sticky Checkout Bar */}
+      <StickyCheckoutBar />
     </div>
   );
 }
@@ -1023,10 +1027,33 @@ function VoiceCartPageInner() {
 export default function VoiceCartPage() {
   return (
     <Suspense fallback={
-      <div className="page-content" style={{ padding: 40, textAlign: 'center' }}>
-        <div className="skeleton skeleton-title" style={{ margin: '0 auto' }} />
-        <div className="skeleton skeleton-card" />
-        <div className="skeleton skeleton-card" />
+      <div className="page-content" style={{ padding: '16px', paddingBottom: 80 }}>
+        <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderRadius: 10, overflow: 'hidden', border: '1px solid #e7e7e7' }}>
+          <div style={{ flex: 1, padding: 12, background: '#f5f5f5' }}>
+            <div className="skeleton-line medium" />
+            <div className="skeleton-line short" style={{ marginTop: 4 }} />
+          </div>
+          <div style={{ flex: 1, padding: 12, background: '#f5f5f5', borderLeft: '1px solid #e7e7e7' }}>
+            <div className="skeleton-line medium" />
+            <div className="skeleton-line short" style={{ marginTop: 4 }} />
+          </div>
+        </div>
+        <div className="skeleton-card-row" style={{ height: 80 }}>
+          <div className="skeleton-avatar" style={{ width: 48, height: 48 }} />
+          <div className="skeleton-lines">
+            <div className="skeleton-line long" />
+            <div className="skeleton-line medium" />
+          </div>
+        </div>
+        {[1, 2, 3].map(i => (
+          <div key={i} className="skeleton-card-row">
+            <div className="skeleton-avatar" />
+            <div className="skeleton-lines">
+              <div className="skeleton-line medium" />
+              <div className="skeleton-line short" />
+            </div>
+          </div>
+        ))}
       </div>
     }>
       <VoiceCartPageInner />
