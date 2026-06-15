@@ -51,14 +51,27 @@ export async function POST(req: NextRequest) {
 
     const orderItem = {
       ...Keys.order(orderId),
-      ...Keys.userOrders(order.userId || 'unknown'),
       id: orderId,
       ...order,
+      pk: `USERORDER#${order.userId || 'unknown'}`,
+      sk: `ORDER#${orderId}`,
       status: 'confirmed',
       createdAt: new Date().toISOString(),
     };
 
+    // Store for the payer
     await client.send(new PutCommand({ TableName: TABLE_NAME, Item: orderItem }));
+
+    // Also store for all other members
+    if (order.memberIds && order.memberIds.length > 0) {
+      for (const memberId of order.memberIds) {
+        if (memberId === order.userId) continue;
+        await client.send(new PutCommand({
+          TableName: TABLE_NAME,
+          Item: { ...orderItem, pk: `USERORDER#${memberId}`, sk: `ORDER#${orderId}` },
+        }));
+      }
+    }
 
     return NextResponse.json({ order: orderItem });
   } catch (err: any) {

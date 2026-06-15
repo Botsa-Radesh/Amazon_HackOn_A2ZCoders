@@ -65,7 +65,7 @@ export const Keys = {
   member(memberId: string) { return { pk: `MEMBER#${memberId}`, sk: 'PROFILE' }; },
   allMembers() { return { pk: 'MEMBER#', sk: 'PROFILE' }; },
   order(orderId: string) { return { pk: `ORDER#${orderId}`, sk: 'META' }; },
-  userOrders(userId: string) { return { pk: `USERORDER#${userId}`, sk: 'ORDER#' }; },
+  userOrders(userId: string, orderId?: string) { return { pk: `USERORDER#${userId}`, sk: `ORDER#${orderId || ''}` }; },
   coins(userId: string) { return { pk: `COINS#${userId}`, sk: 'BALANCE' }; },
   coinTransaction(userId: string, txId: string) { return { pk: `COINS#${userId}`, sk: `TX#${txId}` }; },
   invite(code: string) { return { pk: `INVITE#${code.toUpperCase()}`, sk: 'META' }; },

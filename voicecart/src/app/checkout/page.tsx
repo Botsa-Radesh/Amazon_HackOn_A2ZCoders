@@ -86,12 +86,12 @@ function CheckoutPageInner() {
     if (isProcessing) return;
     setIsProcessing(true);
 
-    // ====== STEP 1: Check if already paid (race condition guard) ======
+    // ====== STEP 1: Check if already paid by SOMEONE ELSE (race condition guard) ======
     if (activeCart?.id) {
       try {
         const checkRes = await fetch(`/api/carts/${activeCart.id}`);
         const checkData = await checkRes.json();
-        if (checkData.cart?.checkedOut) {
+        if (checkData.cart?.checkedOut && checkData.cart?.checkedOutBy && checkData.cart.checkedOutBy !== currentUserId) {
           const payerName = getMemberById(checkData.cart.checkedOutBy)?.name || 'Someone';
           showToast(`Already paid by ${payerName}! Check your splits.`, 'error');
           setAlreadyPaid(true);
@@ -140,9 +140,7 @@ function CheckoutPageInner() {
     const cartSplitMode = activeCart?.splitMode || 'auto';
     placeOrder(items, totalPrice, cartSplitMode, payerPayments, slotTime, totalCoins);
 
-    // ====== STEP 4: Clear cart items in DynamoDB ======
-    // Keep checkedOut=true with payer info so other members get the payment notification
-    // It will auto-reset when any member starts a new order
+    // ====== STEP 4: Clear cart items in DynamoDB and reset for next order ======
     if (activeCart?.id) {
       // Delete all items from DynamoDB
       await Promise.all(items.map(item =>
@@ -152,6 +150,15 @@ function CheckoutPageInner() {
           body: JSON.stringify({ itemId: item.id }),
         }).catch(() => {})
       ));
+      // Wait 2 seconds for other members' polls to detect the payment (items=0 + checkedOutBy set)
+      // Then reset checkedOut so the cart can be reused
+      setTimeout(() => {
+        fetch(`/api/carts/${activeCart.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ checkedOut: false, checkedOutBy: '', checkedOutAt: '' }),
+        }).catch(() => {});
+      }, 6000); // 6s delay — enough for other members' 5s poll to catch it
     }
 
     // ====== STEP 5: Create split requests for other members ======

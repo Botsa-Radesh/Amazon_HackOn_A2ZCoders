@@ -34,10 +34,35 @@ const OrderContext = createContext<OrderContextType | null>(null);
 
 export function OrderProvider({ children }: { children: React.ReactNode }) {
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
-  const [history, setHistory] = useState<Order[]>([]);
+  const [history, setHistory] = useState<Order[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem('voicecart-order-history');
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
   const [deliverySlots, setDeliverySlots] = useState<DeliverySlot[]>(defaultSlots);
-  const [splitRequests, setSplitRequests] = useState<SplitRequest[]>([]);
+  const [splitRequests, setSplitRequests] = useState<SplitRequest[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem('voicecart-splits');
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
   const { userId } = useAuth();
+
+  // Persist history and splits to localStorage
+  useEffect(() => {
+    if (history.length > 0) {
+      try { localStorage.setItem('voicecart-order-history', JSON.stringify(history)); } catch {}
+    }
+  }, [history]);
+
+  useEffect(() => {
+    if (splitRequests.length > 0) {
+      try { localStorage.setItem('voicecart-splits', JSON.stringify(splitRequests)); } catch {}
+    }
+  }, [splitRequests]);
 
   useEffect(() => {
     let uid = userId;
@@ -57,8 +82,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       fetchOrdersFromAPI(uid).then((orders: any[]) => {
         if (!mounted) return;
         if (orders && orders.length > 0) {
-          orders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          setHistory(orders);
+          orders.sort((a, b) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime());
+          setHistory(prev => {
+            // Merge: keep local orders + add any from API not already present
+            const localIds = new Set(prev.map(o => o.id));
+            const newFromApi = orders.filter((o: any) => !localIds.has(o.id));
+            const merged = [...prev, ...newFromApi].sort((a, b) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime());
+            return merged;
+          });
         }
       }).catch(() => {});
 
@@ -72,7 +103,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       splitApi.list(uid).then(res => {
         if (!mounted) return;
         if (res.splits && res.splits.length > 0) {
-          setSplitRequests(res.splits);
+          setSplitRequests(prev => {
+            // Merge: keep local splits + add any from API not already present
+            const localIds = new Set(prev.map(s => s.id));
+            const newFromApi = res.splits.filter((s: any) => !localIds.has(s.id));
+            return [...prev, ...newFromApi];
+          });
         }
       }).catch(() => {});
 
